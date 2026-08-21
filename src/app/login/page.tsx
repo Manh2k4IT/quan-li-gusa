@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('ceo@gusa.io');
-  const [password, setPassword] = useState('ceo123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -46,14 +46,16 @@ export default function LoginPage() {
 
         <h2>Đăng nhập hệ thống</h2>
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className="auth-form" autoComplete="off">
           <label>
             Email
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="ceo@gusa.io"
+              placeholder="Nhập email"
+              autoComplete="off"
+              required
             />
           </label>
 
@@ -64,6 +66,8 @@ export default function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="••••••••"
+              autoComplete="new-password"
+              required
             />
           </label>
 
@@ -74,14 +78,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="demo-credentials">
-          <p>Demo accounts:</p>
-          <ul>
-            <li>ceo@gusa.io / ceo123</li>
-            <li>manager@gusa.io / manager123</li>
-            <li>sale@gusa.io / sale123</li>
-          </ul>
-        </div>
       </div>
     </main>
   );
