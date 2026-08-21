@@ -6,6 +6,7 @@ import { recordActivity } from '@/lib/activity';
 import { canAccessModule, getRoleLabel, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import FormSubmitButton from '@/components/form-submit-button';
+import PasswordToggle from '@/components/password-toggle';
 
 async function getUsers() {
   try {
@@ -20,6 +21,7 @@ async function getUsers() {
       email: user.email,
       role: user.role,
       category: user.category,
+      password: user.password,
       org: user.organization.name,
       createdAt: new Intl.DateTimeFormat('vi-VN', {
         day: '2-digit',
@@ -268,6 +270,7 @@ export default async function AdminUsersPage() {
                 <th>Email</th>
                 <th>Vai trò</th>
                 <th>Phân loại</th>
+                <th>Mật khẩu</th>
                 <th>Org</th>
                 <th>Ngày tạo</th>
                 <th>Hành động</th>
@@ -302,6 +305,7 @@ export default async function AdminUsersPage() {
                       <FormSubmitButton className="ghost-btn" style={{ marginTop: '8px' }} pendingLabel="Đang lưu...">Lưu</FormSubmitButton>
                     </form>
                   </td>
+                  <td><PasswordToggle password={user.password} userName={user.name} /></td>
                   <td>{user.org}</td>
                   <td>{user.createdAt}</td>
                   <td>
