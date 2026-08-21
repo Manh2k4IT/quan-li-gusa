@@ -1790,6 +1790,49 @@ button {
   min-height: 0 !important;
 }
 
+.sales-plan-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow: auto;
+  background: rgba(2, 8, 16, 0.72);
+}
+
+.sales-plan-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: min(760px, calc(100dvh - 40px));
+  overflow: hidden;
+  background: rgba(15, 27, 38, 0.98);
+  border: 1px solid rgba(140, 160, 190, 0.25);
+  border-radius: 18px;
+  padding: 22px 20px 16px;
+  box-shadow: 0 24px 45px rgba(0, 0, 0, 0.32);
+}
+
+.sales-plan-modal-fields,
+.sales-plan-modal > label {
+  flex-shrink: 0;
+}
+
+.sales-plan-modal > label:nth-of-type(3) {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sales-plan-modal-actions {
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
+  padding-top: 14px;
+  background: rgba(15, 27, 38, 0.98);
+}
+
 .sales-plan-table-header,
 .sales-plan-table-row {
   min-width: 0;
@@ -2331,6 +2374,20 @@ button {
 
   .sales-plan-panel {
     padding: 16px 14px 14px !important;
+  }
+
+  .sales-plan-modal-overlay {
+    align-items: flex-start;
+    padding: 10px;
+  }
+
+  .sales-plan-modal {
+    max-height: calc(100dvh - 20px);
+    padding: 18px 14px 12px;
+  }
+
+  .sales-plan-modal-fields {
+    grid-template-columns: 1fr !important;
   }
 
   .sales-plan-table-header {

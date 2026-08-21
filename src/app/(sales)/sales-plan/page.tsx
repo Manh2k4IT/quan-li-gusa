@@ -340,14 +340,14 @@ export default function SalesPlanPage() {
       )}
 
       {isModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(2, 8, 16, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={closeModal}>
-          <div onClick={(event) => event.stopPropagation()} style={{ width: '560px', background: 'rgba(15, 27, 38, 0.96)', border: '1px solid rgba(140, 160, 190, 0.25)', borderRadius: '18px', padding: '22px 20px', boxShadow: '0 24px 45px rgba(0,0,0,0.28)' }}>
+        <div className="sales-plan-modal-overlay" onClick={closeModal}>
+          <div className="sales-plan-modal" onClick={(event) => event.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
               <h3 style={{ margin: 0, color: '#edf5ff', fontSize: '1.7rem' }}>Báo cáo kế hoạch</h3>
               <button type="button" onClick={closeModal} style={{ background: 'transparent', border: '1px solid rgba(158, 176, 211, 0.25)', color: '#edf5ff', width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer' }}>×</button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div className="sales-plan-modal-fields" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', color: '#dfeaf7' }}>
                 <span>Ngày</span>
                 <input type="date" value={draft.assignedDate} onChange={(e) => setDraft((prev) => ({ ...prev, assignedDate: e.target.value }))} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(158, 176, 211, 0.25)', background: 'rgba(15, 26, 38, 0.8)', color: '#edf5ff' }} />
@@ -405,7 +405,7 @@ export default function SalesPlanPage() {
               <textarea value={draft.note} onChange={(e) => setDraft((prev) => ({ ...prev, note: e.target.value }))} placeholder="Nhập ghi chú kế hoạch..." rows={5} style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(158, 176, 211, 0.25)', background: 'rgba(15, 26, 38, 0.8)', color: '#edf5ff', resize: 'vertical' }} />
             </label>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+            <div className="sales-plan-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
               <button type="button" onClick={closeModal} style={{ background: 'transparent', border: '1px solid rgba(158, 176, 211, 0.25)', color: '#edf5ff', padding: '10px 18px', borderRadius: '10px', cursor: 'pointer' }}>Hủy</button>
               <button type="button" onClick={handleSave} style={{ background: 'linear-gradient(135deg, #5fe5c4, #4cd2da)', border: 'none', color: '#061d2b', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer', fontWeight: 800 }}>Lưu báo cáo</button>
             </div>
