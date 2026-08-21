@@ -1807,7 +1807,8 @@ button {
   flex-direction: column;
   width: min(560px, 100%);
   max-height: min(760px, calc(100dvh - 40px));
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: rgba(15, 27, 38, 0.98);
   border: 1px solid rgba(140, 160, 190, 0.25);
   border-radius: 18px;
@@ -1820,9 +1821,21 @@ button {
   flex-shrink: 0;
 }
 
-.sales-plan-modal > label:nth-of-type(3) {
-  min-height: 0;
-  overflow-y: auto;
+.sales-plan-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sales-plan-modal::-webkit-scrollbar-track {
+  margin: 10px 2px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.sales-plan-modal::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #67e8f9, #38bdf8 55%, #818cf8);
+  background-clip: padding-box;
 }
 
 .sales-plan-modal-actions {
