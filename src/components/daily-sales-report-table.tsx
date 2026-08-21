@@ -122,9 +122,32 @@ export default function DailySalesReportTable({ category }: { category: Category
     if (isAnalyzing || !visibleReports.length) return;
     setIsAnalyzing(true);
     setAiAnalysis('Đang phân tích dữ liệu...');
-    const summary = visibleReports.map((report) => `${report.salesperson}: đơn ${report.orderCode}, doanh thu ${report.revenue}, trạng thái ${report.orderStatus}, ghi chú ${report.note || 'không có'}`).join('\n');
+    const reportData = visibleReports.map((report) => ({
+      date: report.date,
+      salesperson: report.salesperson,
+      orderCode: report.orderCode,
+      category: report.category,
+      paymentMethod: report.paymentMethod,
+      orderStatus: report.orderStatus,
+      revenue: report.revenue,
+      note: report.note || 'Không có ghi chú',
+      items: report.items.map((item) => ({
+        productCode: item.productCode,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        revenue: item.revenue,
+      })),
+    }));
     try {
-      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Phân tích trực tiếp các báo cáo Sale trong danh sách sau của ${category}. Nêu tổng quan, điểm bất thường và đề xuất quản lý:\n${summary}` }) });
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Phân tích các báo cáo Sale nhập của ${category}. Hãy tổng hợp doanh thu, sản lượng, hiệu suất từng Sale, điểm bất thường và đưa ra phương án hành động cụ thể. Chỉ sử dụng dữ liệu báo cáo được gửi kèm, không sử dụng dữ liệu CRM, dữ liệu mẫu hoặc số liệu ngoài danh sách.`,
+          reportData,
+        }),
+      });
       const payload = await response.json();
       setAiAnalysis(response.ok ? payload.reply : (payload.message ?? 'Không thể phân tích.'));
     } catch { setAiAnalysis('Không thể kết nối AI.'); }

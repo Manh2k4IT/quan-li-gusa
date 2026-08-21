@@ -4,7 +4,19 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { recordActivity } from '@/lib/activity';
 
-async function askChatGpt(message: string, context: Awaited<ReturnType<typeof buildBusinessContext>>) {
+type SalesAnalysisReport = {
+  date: string;
+  salesperson: string;
+  orderCode: string;
+  category: string;
+  paymentMethod: string;
+  orderStatus: string;
+  revenue: number;
+  note: string;
+  items: Array<{ productCode: string; productName: string; quantity: number; unitPrice: number; revenue: number }>;
+};
+
+async function askChatGpt(message: string, context: Awaited<ReturnType<typeof buildBusinessContext>> | null, reportData?: SalesAnalysisReport[]) {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) return null;
@@ -25,14 +37,16 @@ async function askChatGpt(message: string, context: Awaited<ReturnType<typeof bu
         },
         {
           role: 'user',
-          content: `${message}\n\nDữ liệu vận hành hiện tại:\n${JSON.stringify({
-            customerCount: context.customerCount,
-            productCount: context.productCount,
-            lowStockCount: context.lowStockCount,
-            totalRevenue: context.totalRevenue,
-            topStatus: context.topStatus,
-            lowStockItems: context.lowStockItems.map((item) => ({ sku: item.product.sku, stock: item.stock, warehouse: item.warehouse })),
-          })}`,
+          content: reportData
+            ? `${message}\n\nDỮ LIỆU BÁO CÁO SALE NHẬP DUY NHẤT:\n${JSON.stringify(reportData)}`
+            : `${message}\n\nDữ liệu vận hành hiện tại:\n${JSON.stringify({
+              customerCount: context!.customerCount,
+              productCount: context!.productCount,
+              lowStockCount: context!.lowStockCount,
+              totalRevenue: context!.totalRevenue,
+              topStatus: context!.topStatus,
+              lowStockItems: context!.lowStockItems.map((item) => ({ sku: item.product.sku, stock: item.stock, warehouse: item.warehouse })),
+            })}`,
         },
       ],
     }),
@@ -76,6 +90,17 @@ async function buildBusinessContext() {
     topStatus,
     lowStockItems,
   };
+}
+
+function generateSalesReply(reports: SalesAnalysisReport[]) {
+  const totalRevenue = reports.reduce((sum, report) => sum + Number(report.revenue || 0), 0);
+  const totalQuantity = reports.reduce((sum, report) => sum + report.items.reduce((itemSum, item) => itemSum + Number(item.quantity || 0), 0), 0);
+  const bySalesperson = new Map<string, number>();
+  reports.forEach((report) => bySalesperson.set(report.salesperson, (bySalesperson.get(report.salesperson) ?? 0) + Number(report.revenue || 0)));
+  const ranking = [...bySalesperson.entries()].sort((left, right) => right[1] - left[1]).map(([name, revenue]) => `${name}: ${revenue.toLocaleString('vi-VN')} VND`).join('; ');
+  const unusual = reports.filter((report) => report.orderStatus.toLowerCase().includes('hủy') || report.orderStatus.toLowerCase().includes('không'));
+
+  return `Tổng hợp ${reports.length} báo cáo Sale nhập: doanh thu ${totalRevenue.toLocaleString('vi-VN')} VND, sản lượng ${totalQuantity}. Hiệu suất theo Sale: ${ranking || 'chưa đủ dữ liệu'}. ${unusual.length ? `Có ${unusual.length} báo cáo cần xử lý do trạng thái ${unusual.map((report) => report.orderStatus).join(', ')}.` : 'Chưa thấy báo cáo có trạng thái bất thường.'} Phương án: ưu tiên kiểm tra các đơn có trạng thái chưa hoàn tất, đối soát doanh thu với từng mã đơn, theo dõi Sale có doanh thu thấp và cập nhật ghi chú nguyên nhân trước khi chốt báo cáo.`;
 }
 
 function generateReply(message: string, context: Awaited<ReturnType<typeof buildBusinessContext>>) {
@@ -122,16 +147,17 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const message = String(body?.message ?? '').trim();
+    const reportData = Array.isArray(body?.reportData) ? body.reportData as SalesAnalysisReport[] : undefined;
 
     if (!message) {
       return NextResponse.json({ message: 'Message is required.' }, { status: 400 });
     }
 
-    const context = await buildBusinessContext();
+    const context = reportData?.length ? null : await buildBusinessContext();
     const provider = 'openai';
-    const aiReply = await askChatGpt(message, context);
+    const aiReply = await askChatGpt(message, context, reportData);
 
-    const reply = aiReply ?? generateReply(message, context);
+    const reply = aiReply ?? (reportData?.length ? generateSalesReply(reportData) : generateReply(message, context!));
 
     await recordActivity({
       userEmail: session.email,
@@ -144,10 +170,10 @@ export async function POST(request: Request) {
       reply,
       role: session.role,
       context: {
-        customerCount: context.customerCount,
-        productCount: context.productCount,
-        lowStockCount: context.lowStockCount,
-        totalRevenue: context.totalRevenue,
+        customerCount: context?.customerCount ?? 0,
+        productCount: context?.productCount ?? 0,
+        lowStockCount: context?.lowStockCount ?? 0,
+        totalRevenue: context?.totalRevenue ?? 0,
       },
       provider: aiReply ? 'openai' : 'fallback',
       configuredProvider: provider,
