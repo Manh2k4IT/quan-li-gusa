@@ -241,6 +241,8 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
   const [benThanhComparisonLoading, setBenThanhComparisonLoading] = useState(true);
   const [fashionComparisonLoading, setFashionComparisonLoading] = useState(true);
   const [fashionComparisonError, setFashionComparisonError] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState(fallbackAiSuggestions);
+  const [aiInsightsLoading, setAiInsightsLoading] = useState(true);
 
   useEffect(() => {
     const warehouse = encodeURIComponent('Kho vải Bến Thành - CTTGVN');
@@ -330,13 +332,28 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
     };
   }, [month, year]);
 
+  useEffect(() => {
+    let ignore = false;
+    setAiInsightsLoading(true);
+
+    fetch('/api/dashboard-insights', { cache: 'no-store' })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!ignore && Array.isArray(payload?.insights) && payload.insights.length) {
+          setAiSuggestions(payload.insights);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!ignore) setAiInsightsLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const orderProgress = pipelineState;
-  const aiSuggestions = resolvedErpData?.aiPlan?.length
-    ? resolvedErpData.aiPlan.slice(0, 3).map((detail, index) => ({
-        title: ['Doanh thu', 'Lợi nhuận', 'Vận hành'][index] ?? 'Phân tích ERP',
-        detail,
-      }))
-    : fallbackAiSuggestions;
 
   return (
     <>
@@ -460,11 +477,13 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
               <p className="eyebrow" style={{ letterSpacing: '0.12em', fontSize: '0.68rem' }}>AI guidance</p>
               <h3 style={{ marginTop: '4px', fontSize: '1.05rem', fontWeight: 700 }}>Gợi ý từ AI</h3>
             </div>
-            <span className="badge success" style={{ fontSize: '0.68rem', padding: '5px 10px' }}>Live</span>
+            <span className="badge success" style={{ fontSize: '0.68rem', padding: '5px 10px' }}>{aiInsightsLoading ? 'Đang tải' : 'Live'}</span>
           </div>
 
           <div className="ai-shell" style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
-            {aiSuggestions.map((item, index) => (
+            {aiInsightsLoading ? (
+              <div className="ai-loading-state">Đang tổng hợp báo cáo Sale, kế hoạch và dữ liệu ERP...</div>
+            ) : aiSuggestions.map((item, index) => (
               <div key={item.title} className="ai-suggestion" style={{
                 border: '1px solid rgba(148,163,184,0.15)',
                 background: index === 0 ? 'rgba(96,165,250,0.08)' : index === 1 ? 'rgba(245,158,11,0.06)' : 'rgba(34,197,94,0.07)',

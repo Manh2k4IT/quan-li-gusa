@@ -1376,6 +1376,21 @@ button {
   font-size: 0.8rem;
 }
 
+.ai-loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 20px;
+  border: 1px dashed rgba(125, 211, 252, 0.24);
+  border-radius: 12px;
+  color: #9ec2e8;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: center;
+  background: rgba(125, 211, 252, 0.04);
+}
+
 @keyframes loading-shimmer {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }
