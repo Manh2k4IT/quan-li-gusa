@@ -1,0 +1,233 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+  customers   Customer[]
+  products    Product[]
+  documents   Document[]
+  dashboards  Dashboard[]
+  kpis        KPI[]
+  activities  ActivityLog[]
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  password     String        @default("gusa123")
+  role         Role
+  category     String        @default("Chưa phân loại")
+  orgId        String
+  organization Organization  @relation(fields: [orgId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  documents    Document[]
+  dashboards   Dashboard[]
+  activities   ActivityLog[]
+  managerAssignments SalesAssignment[] @relation("ManagerAssignments")
+  saleAssignments    SalesAssignment[] @relation("SaleAssignments")
+  salesReports       SalesReport[]
+
+  @@index([orgId])
+}
+
+model SalesReport {
+  id             String   @id @default(cuid())
+  date           String
+  orderCode      String
+  category       String
+  team           String
+  salesperson    String
+  salespersonEmail String?
+  paymentMethod  String
+  orderStatus    String
+  target         Float    @default(0)
+  note           String   @default("")
+  items          Json
+  revenue        Float    @default(0)
+  salespersonId  String?
+  salespersonUser User?   @relation(fields: [salespersonId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([category])
+  @@index([date])
+  @@index([salespersonEmail])
+}
+
+model SalesTarget {
+  id        String   @id @default(cuid())
+  category  String   @unique
+  amount    Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SalesAssignment {
+  id             String   @id @default(cuid())
+  managerId      String
+  manager        User     @relation("ManagerAssignments", fields: [managerId], references: [id])
+  assigneeId     String
+  assignee       User     @relation("SaleAssignments", fields: [assigneeId], references: [id])
+  category       String
+  title          String
+  note           String   @default("")
+  status         String   @default("Đang thực hiện")
+  date           String
+  attachmentName String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([assigneeId])
+  @@index([managerId])
+}
+
+enum Role {
+  CEO
+  MANAGER
+  SALE
+}
+
+model Customer {
+  id             String   @id @default(cuid())
+  name           String
+  company        String?
+  email          String?
+  phone          String?
+  status         String
+  value          Float
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  orders         Order[]
+
+  @@index([orgId])
+}
+
+model Product {
+  id            String          @id @default(cuid())
+  name          String
+  sku           String          @unique
+  category      String
+  unitPrice     Float
+  orgId         String
+  organization  Organization    @relation(fields: [orgId], references: [id])
+  inventory     Inventory[]
+  orderItems    OrderItem[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([orgId])
+}
+
+model Inventory {
+  id            String   @id @default(cuid())
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  warehouse     String
+  stock         Int
+  reorderPoint  Int
+  updatedAt     DateTime @updatedAt
+
+  @@unique([productId, warehouse])
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  customerId   String
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  total        Float
+  status       String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  items        OrderItem[]
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model KPI {
+  id          String       @id @default(cuid())
+  orgId       String
+  organization Organization @relation(fields: [orgId], references: [id])
+  name        String
+  value       Float
+  target      Float
+  unit        String
+  period      String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([orgId])
+}
+
+model Dashboard {
+  id          String        @id @default(cuid())
+  orgId       String
+  organization Organization @relation(fields: [orgId], references: [id])
+  name        String
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id])
+  widgets     Json
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([orgId])
+  @@index([ownerId])
+}
+
+model ActivityLog {
+  id          String       @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String?
+  details     String
+  orgId       String
+  organization Organization @relation(fields: [orgId], references: [id])
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Document {
+  id          String        @id @default(cuid())
+  orgId       String
+  organization Organization @relation(fields: [orgId], references: [id])
+  title       String
+  type        String
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id])
+  content     String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([orgId])
+  @@index([ownerId])
+}
