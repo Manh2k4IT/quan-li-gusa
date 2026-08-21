@@ -1323,6 +1323,64 @@ button {
   padding: 32px 20px 48px;
 }
 
+.loading-page {
+  position: relative;
+}
+
+.loading-placeholder {
+  border-radius: 12px;
+  background: linear-gradient(100deg, rgba(148, 163, 184, 0.08), rgba(125, 211, 252, 0.14), rgba(148, 163, 184, 0.08));
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.4s ease-in-out infinite;
+}
+
+.loading-title {
+  width: 280px;
+  height: 48px;
+  margin-bottom: 24px;
+}
+
+.loading-stats {
+  width: 100%;
+  height: 96px;
+  margin-bottom: 24px;
+}
+
+.loading-panel {
+  min-height: 220px;
+  margin-bottom: 20px;
+}
+
+.loading-heading {
+  width: 220px;
+  height: 28px;
+  margin-bottom: 24px;
+}
+
+.loading-form,
+.loading-table {
+  width: 100%;
+  height: 120px;
+}
+
+.loading-message {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 5;
+  padding: 10px 14px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 10px;
+  background: rgba(8, 17, 32, 0.92);
+  color: #b9d8f8;
+  font-size: 0.8rem;
+}
+
+@keyframes loading-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
 .sales-report-page {
   max-width: 1280px;
 }

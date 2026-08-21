@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { recordActivity } from '@/lib/activity';
 import { canAccessModule, getRoleLabel, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import FormSubmitButton from '@/components/form-submit-button';
 
 async function getUsers() {
   try {
@@ -245,7 +246,7 @@ export default async function AdminUsersPage() {
             </label>
           </div>
 
-          <button type="submit" className="primary-btn">Tạo tài khoản</button>
+          <FormSubmitButton className="primary-btn" pendingLabel="Đang tạo tài khoản...">Tạo tài khoản</FormSubmitButton>
         </form>
       </div>
 
@@ -285,9 +286,7 @@ export default async function AdminUsersPage() {
                         <option value="MANAGER">Quản lý</option>
                         <option value="SALE">Sale</option>
                       </select>
-                      <button type="submit" className="ghost-btn" style={{ marginTop: '8px' }}>
-                        Save
-                      </button>
+                      <FormSubmitButton className="ghost-btn" style={{ marginTop: '8px' }} pendingLabel="Đang lưu...">Lưu</FormSubmitButton>
                     </form>
                   </td>
                   <td>
@@ -300,9 +299,7 @@ export default async function AdminUsersPage() {
                         <option value="Kho vải Bến Thành">Kho vải Bến Thành</option>
                         <option value="Tổng điều hành">Tổng điều hành</option>
                       </select>
-                      <button type="submit" className="ghost-btn" style={{ marginTop: '8px' }}>
-                        Save
-                      </button>
+                      <FormSubmitButton className="ghost-btn" style={{ marginTop: '8px' }} pendingLabel="Đang lưu...">Lưu</FormSubmitButton>
                     </form>
                   </td>
                   <td>{user.org}</td>
@@ -310,9 +307,7 @@ export default async function AdminUsersPage() {
                   <td>
                     <form action={deleteUser} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
                       <input type="hidden" name="userId" value={user.id} />
-                      <button type="submit" className="ghost-btn danger-btn" aria-label={`Xóa người dùng ${user.name}`}>
-                        Xóa
-                      </button>
+                      <FormSubmitButton className="ghost-btn danger-btn" pendingLabel="Đang xóa..." aria-label={`Xóa người dùng ${user.name}`}>Xóa</FormSubmitButton>
                     </form>
                   </td>
                 </tr>
