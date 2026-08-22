@@ -3,6 +3,12 @@ import { getSession } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
+type AssignmentDelegate = {
+  create: (args: { data: Record<string, unknown>; include?: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+  findUnique: (args: { where: { id: string }; select?: Record<string, unknown> }) => Promise<Record<string, unknown> | null>;
+  update: (args: { where: { id: string }; data: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+};
+
 export async function GET() {
   try {
     const session = getSession(await cookies());
@@ -119,7 +125,7 @@ export async function POST(request: Request) {
       date: date ?? new Date().toISOString().slice(0, 10),
       attachmentName: attachmentName ?? '',
     };
-    const assignmentDelegate = (prisma as typeof prisma & { salesAssignment?: { create: Function } }).salesAssignment;
+    const assignmentDelegate = (prisma as typeof prisma & { salesAssignment?: AssignmentDelegate }).salesAssignment;
     let assignment;
 
     if (assignmentDelegate?.create) {
@@ -164,7 +170,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: 'Thiếu dữ liệu cập nhật.' }, { status: 400 });
     }
 
-    const assignmentDelegate = (prisma as typeof prisma & { salesAssignment?: { findUnique: Function; update: Function } }).salesAssignment;
+    const assignmentDelegate = (prisma as typeof prisma & { salesAssignment?: AssignmentDelegate }).salesAssignment;
     const assignment = assignmentDelegate?.findUnique
       ? await assignmentDelegate.findUnique({
           where: { id: String(id) },

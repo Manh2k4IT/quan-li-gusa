@@ -51,19 +51,23 @@ export default function DailySalesReportTable({ category }: { category: Category
   const [savedTarget, setSavedTarget] = useState(false);
 
   useEffect(() => {
-    setTargetCategory(category);
-  }, [category]);
-
-  useEffect(() => {
-    fetch('/api/sales-targets')
-      .then(async (response) => response.ok ? response.json() : { targets: [] })
-      .then((payload) => {
-        const target = (payload.targets ?? []).find((item: { category: string }) => item.category === targetCategory);
+    const loadTarget = async () => {
+      try {
+        const response = await fetch('/api/sales-targets');
+        const payload = response.ok ? await response.json() : { targets: [] };
+        const target = (payload.targets ?? []).find((item: { category: string }) => item.category === category);
         setTargetAmount(target ? String(target.amount) : '');
         setSavedTarget(false);
-      })
-      .catch(() => { setTargetAmount(''); setSavedTarget(false); });
-  }, [targetCategory]);
+      } catch {
+        setTargetAmount('');
+        setSavedTarget(false);
+      }
+    };
+
+    queueMicrotask(() => {
+      void loadTarget();
+    });
+  }, [category]);
 
   const loadReports = async () => {
     try {
@@ -87,8 +91,11 @@ export default function DailySalesReportTable({ category }: { category: Category
   };
 
   useEffect(() => {
-    loadReports();
-    const sync = () => loadReports();
+    const sync = () => {
+      void loadReports();
+    };
+
+    queueMicrotask(sync);
     const timer = window.setInterval(sync, 2000);
     window.addEventListener('storage', sync);
     window.addEventListener('focus', sync);

@@ -58,7 +58,7 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
 
     const loadLiveErpData = async () => {
       try {
-        const csrfToken = (window as any)?.frappe?.csrf_token;
+        const csrfToken = (window as typeof window & { frappe?: { csrf_token?: string } })?.frappe?.csrf_token;
         if (!csrfToken || erpData) {
           return;
         }
@@ -334,7 +334,6 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
 
   useEffect(() => {
     let ignore = false;
-    setAiInsightsLoading(true);
 
     fetch('/api/dashboard-insights', { cache: 'no-store' })
       .then(async (response) => response.ok ? response.json() : null)

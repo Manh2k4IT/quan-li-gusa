@@ -3,12 +3,17 @@ import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+type SalesReportDelegate = {
+  findMany: (args: { where?: Record<string, unknown>; orderBy?: Record<string, string> }) => Promise<unknown[]>;
+  create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
+};
+
 export async function GET() {
   try {
     const session = getSession(await cookies());
     if (!session) return NextResponse.json({ reports: [] }, { status: 401 });
 
-    const reportDelegate = (prisma as typeof prisma & { salesReport?: { findMany: Function; create: Function } }).salesReport;
+    const reportDelegate = (prisma as typeof prisma & { salesReport?: SalesReportDelegate }).salesReport;
     let reports;
 
     if (reportDelegate?.findMany) {
@@ -58,7 +63,7 @@ export async function POST(request: Request) {
         revenue: Number(body.revenue ?? 0),
         salespersonId: session.id && !session.id.includes('@') ? session.id : undefined,
     };
-    const reportDelegate = (prisma as typeof prisma & { salesReport?: { create: Function } }).salesReport;
+    const reportDelegate = (prisma as typeof prisma & { salesReport?: Pick<SalesReportDelegate, 'create'> }).salesReport;
     const report = reportDelegate?.create
       ? await reportDelegate.create({ data: reportData })
       : await prisma.$executeRawUnsafe(

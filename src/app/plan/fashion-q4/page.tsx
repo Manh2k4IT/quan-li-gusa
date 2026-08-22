@@ -5,6 +5,15 @@ import { useEffect, useMemo, useState } from 'react';
 
 type SaleUser = { id: string; name: string; email: string; category: string };
 
+type StoredPlanItem = {
+  id?: string;
+  salesperson?: string;
+  category?: string;
+  note?: string;
+  status?: string;
+  attachmentName?: string;
+};
+
 type TaskRow = {
   id: string;
   sale: string;
@@ -15,6 +24,18 @@ type TaskRow = {
   attachment: string;
   sent: boolean;
 };
+
+type AssignmentApiItem = {
+  id: string;
+  date?: string;
+  category?: string;
+  status?: string;
+  note?: string;
+  attachmentName?: string;
+  assignee?: { name?: string; email?: string };
+};
+
+const createPlanId = (saleName: string, categoryName: string) => `plan-${Math.random().toString(36).slice(2, 11)}-${saleName}-${categoryName}`;
 
 export default function FashionPlanPage() {
   const [rows, setRows] = useState<TaskRow[]>([]);
@@ -48,21 +69,21 @@ export default function FashionPlanPage() {
   useEffect(() => {
     fetch('/api/plan-assignments')
       .then((response) => response.json())
-      .then((payload) => setRows((payload.assignments ?? []).map((item: any) => ({ id: item.id, sale: item.assignee?.name ?? item.assignee?.email ?? 'Sale', date: item.date, category: item.category ?? 'Chưa phân loại', status: item.status, note: item.note, attachment: item.attachmentName ?? '', sent: true }))))
+      .then((payload: { assignments?: AssignmentApiItem[] }) => setRows((payload.assignments ?? []).map((item) => ({ id: item.id, sale: item.assignee?.name ?? item.assignee?.email ?? 'Sale', date: item.date ?? '', category: item.category ?? 'Chưa phân loại', status: item.status ?? 'Đang thực hiện', note: item.note ?? '', attachment: item.attachmentName ?? '', sent: true }))))
       .catch(() => setRows([]));
 
     fetch('/api/users?role=SALE')
       .then((response) => response.json())
-      .then((payload) => setSaleUsers(Array.isArray(payload.users) ? payload.users : []))
+      .then((payload: { users?: SaleUser[] }) => setSaleUsers(Array.isArray(payload.users) ? payload.users : []))
       .catch(() => setSaleUsers([]));
   }, []);
 
   const saveToSalesPlan = (saleName: string, status: TaskRow['status'], note: string) => {
     try {
-      const existing = JSON.parse(window.localStorage.getItem('gusa-sales-plan-assigned') ?? '[]');
+      const existing = JSON.parse(window.localStorage.getItem('gusa-sales-plan-assigned') ?? '[]') as StoredPlanItem[];
       const next = [
         {
-          id: `plan-${Date.now()}-${saleName}`,
+          id: createPlanId(saleName, 'Thời trang Quận 4'),
           assignedDate: new Date().toISOString().slice(0, 10),
           manager: 'Quản lý A',
           salesperson: saleName,
@@ -73,7 +94,7 @@ export default function FashionPlanPage() {
           status,
           note,
         },
-        ...Array.isArray(existing) ? existing.filter((item: any) => !(item.salesperson === saleName && item.category === 'Thời trang Quận 4')) : []
+        ...Array.isArray(existing) ? existing.filter((item) => !(item.salesperson === saleName && item.category === 'Thời trang Quận 4')) : [],
       ];
       window.localStorage.setItem('gusa-sales-plan-assigned', JSON.stringify(next));
       window.dispatchEvent(new Event('gusa-plan-sync'));

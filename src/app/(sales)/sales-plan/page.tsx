@@ -30,6 +30,18 @@ type PlanReport = {
   note: string;
 };
 
+type AssignmentPayload = {
+  id: string;
+  date?: string;
+  manager?: { name?: string };
+  assignee?: { name?: string; email?: string };
+  category?: string;
+  title?: string;
+  attachmentName?: string;
+  status?: string;
+  note?: string;
+};
+
 const storageKey = 'gusa-sales-plan-assigned';
 
 const seedPlans: PlanReport[] = [
@@ -73,6 +85,16 @@ const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN', {
 
 export default function SalesPlanPage() {
   const [sessionUser, setSessionUser] = useState<{ id?: string; name?: string; email?: string; role?: string } | null>(null);
+  const [draft, setDraft] = useState({
+    assignedDate: new Date().toISOString().slice(0, 10),
+    manager: 'Quản lý A',
+    salesperson: 'Nguyễn Văn Sale 1',
+    category: 'Thời trang Quận 4',
+    title: '',
+    target: '150000000',
+    status: 'Đang thực hiện',
+    note: '',
+  });
 
   useEffect(() => {
     fetch('/api/session')
@@ -80,7 +102,7 @@ export default function SalesPlanPage() {
       .then((payload) => {
         const user = payload.user ?? null;
         setSessionUser(user);
-        setDraft((previous) => ({ ...previous, salesperson: user?.name ?? '' }));
+        setDraft((previous) => ({ ...previous, salesperson: user?.name ?? previous.salesperson }));
       })
       .catch(() => setSessionUser(null));
   }, []);
@@ -91,7 +113,7 @@ export default function SalesPlanPage() {
         .then(async (response) => response.ok ? response.json() : { assignments: [] })
         .then((payload) => {
           const items = Array.isArray(payload.assignments) ? payload.assignments : [];
-          const mapped: PlanReport[] = items.map((assignment: any) => ({
+          const mapped: PlanReport[] = items.map((assignment: AssignmentPayload) => ({
             id: assignment.id,
             assignedDate: assignment.date,
             manager: assignment.manager?.name ?? 'Quản lý',
@@ -150,32 +172,18 @@ export default function SalesPlanPage() {
     };
   }, [sessionUser?.id]);
 
-  const filteredPlans = useMemo(() => {
-    if (!sessionUser?.id) {
-      return plans;
-    }
-
-    return plans.filter((plan) => {
-      const assigneeId = (plan as AssignmentRecord & { assigneeId?: string }).assigneeId;
-      return !assigneeId || assigneeId === sessionUser.id;
-    });
-  }, [plans, sessionUser?.id]);
+  const filteredPlans = !sessionUser?.id
+    ? plans
+    : plans.filter((plan) => {
+        const assigneeId = (plan as AssignmentRecord & { assigneeId?: string }).assigneeId;
+        return !assigneeId || assigneeId === sessionUser.id;
+      });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanReport | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState('');
-  const [draft, setDraft] = useState({
-    assignedDate: new Date().toISOString().slice(0, 10),
-    manager: 'Quản lý A',
-    salesperson: 'Nguyễn Văn Sale 1',
-    category: 'Thời trang Quận 4',
-    title: '',
-    target: '150000000',
-    status: 'Đang thực hiện',
-    note: '',
-  });
 
   const openModal = (plan?: PlanReport) => {
     if (plan) {

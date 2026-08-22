@@ -20,6 +20,17 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Deploy on Render
+
+The app uses SQLite. Production data must be stored at `file:/var/data/dev.db` on a Render persistent disk. The included `render.yaml` creates a 5 GB disk mounted at `/var/data` and sets this value as `DATABASE_URL`.
+
+When deploying from the Render dashboard, make sure the service has both:
+
+- a persistent disk mounted at `/var/data`
+- `DATABASE_URL=file:/var/data/dev.db`
+
+The start command runs migrations and the idempotent seed before starting Next.js. Do not use `file:./dev.db` in production, because that file is part of the temporary application filesystem and can disappear after a redeploy.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -1,8 +1,9 @@
-const { PrismaClient } = require('../src/generated/prisma/client');
-
-const prisma = new PrismaClient();
+const createPlanId = (saleName, category) => `plan-${Math.random().toString(36).slice(2, 11)}-${saleName}-${category}`;
 
 (async () => {
+  const { PrismaClient } = await import('../src/generated/prisma/client');
+  const prisma = new PrismaClient();
+
   try {
     const org = await prisma.organization.findFirst({ where: { slug: 'gusa' } });
     console.log('orgId:', org?.id);

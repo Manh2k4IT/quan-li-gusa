@@ -67,7 +67,11 @@ export default function AIWorkflowPage() {
   }
 
   useEffect(() => {
-    loadData();
+    const run = async () => {
+      await loadData();
+    };
+
+    void run();
   }, []);
 
   return (

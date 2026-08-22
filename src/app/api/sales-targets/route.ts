@@ -3,9 +3,14 @@ import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+type SalesTargetDelegate = {
+  findMany: (args: { orderBy?: Record<string, string> }) => Promise<unknown[]>;
+  upsert: (args: { where: { category: string }; update: { amount: number }; create: { category: string; amount: number } }) => Promise<Record<string, unknown>>;
+};
+
 export async function GET() {
   try {
-    const targetDelegate = (prisma as typeof prisma & { salesTarget?: { findMany: Function; upsert: Function } }).salesTarget;
+    const targetDelegate = (prisma as typeof prisma & { salesTarget?: SalesTargetDelegate }).salesTarget;
     const targets = targetDelegate?.findMany
       ? await targetDelegate.findMany({ orderBy: { category: 'asc' } })
       : await prisma.$queryRawUnsafe<Array<{ id: string; category: string; amount: number }>>('SELECT id, category, amount FROM SalesTarget ORDER BY category ASC');
@@ -27,8 +32,8 @@ export async function PUT(request: Request) {
 
     const normalizedCategory = String(category);
     const normalizedAmount = Number(amount) || 0;
-    const targetDelegate = (prisma as typeof prisma & { salesTarget?: { findMany: Function; upsert: Function } }).salesTarget;
-    let target;
+    const targetDelegate = (prisma as typeof prisma & { salesTarget?: SalesTargetDelegate }).salesTarget;
+    let target: { id: string; category: string; amount: number } | undefined;
 
     if (targetDelegate?.upsert) {
       target = await targetDelegate.upsert({
