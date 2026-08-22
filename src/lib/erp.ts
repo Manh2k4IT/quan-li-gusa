@@ -605,9 +605,9 @@ function matchesWarehouse(item: Record<string, unknown>, warehouse: string) {
 
   const synonyms = new Set<string>([
     targetWarehouse,
-    targetWarehouse.replace(/quan 4|quÃ¡ÂºÂ­n 4|q4/g, 'thoi trang q4'),
-    targetWarehouse.replace(/thoi trang|thÃ¡Â»Âi trang/g, 'q4'),
-    targetWarehouse.replace(/thoi trang|thÃ¡Â»Âi trang|quan 4|quÃ¡ÂºÂ­n 4|q4/g, 'thoi trang'),
+    targetWarehouse.replace(/quan 4|quận 4|q4/g, 'thoi trang q4'),
+    targetWarehouse.replace(/thoi trang/g, 'q4'),
+    targetWarehouse.replace(/thoi trang|quan 4|quận 4|q4/g, 'thoi trang'),
     targetWarehouse.replace(/kho /g, ''),
   ]);
 
@@ -619,7 +619,7 @@ function matchesWarehouse(item: Record<string, unknown>, warehouse: string) {
       || compact.includes(itemCompact)
       || (targetCompact && itemCompact.includes(targetCompact))
       || (targetCompact && targetCompact.includes(itemCompact));
-  }) || /q4|thoi trang|thoi-trang|thÃ¡Â»Âi trang/.test(itemWarehouse) && /q4|thoi trang|thoi-trang|thÃ¡Â»Âi trang/.test(targetWarehouse);
+  }) || /q4|thoi trang|thoi-trang/.test(itemWarehouse) && /q4|thoi trang|thoi-trang/.test(targetWarehouse);
 }
 
 function matchesItemGroup(item: Record<string, unknown>, itemGroup: string) {
@@ -641,7 +641,7 @@ function matchesItemGroup(item: Record<string, unknown>, itemGroup: string) {
     || targetCompact.includes(groupCompact)
     || itemNameCompact.includes(targetCompact)
     || targetCompact.includes(itemNameCompact)
-    || /thanh pham|thÃƒÂ nh phÃ¡ÂºÂ©m|fashion|garment|product/.test(groupValue + ' ' + itemName) && /thanh pham|thÃƒÂ nh phÃ¡ÂºÂ©m|fashion|garment|product/.test(targetGroup);
+    || /thanh pham|fashion|garment|product/.test(groupValue + ' ' + itemName) && /thanh pham|fashion|garment|product/.test(targetGroup);
 }
 
 function matchesUnitType(item: Record<string, unknown>, unitType: 'piece' | 'meter') {
@@ -649,12 +649,12 @@ function matchesUnitType(item: Record<string, unknown>, unitType: 'piece' | 'met
 
   if (unitType === 'meter') {
     return isMeterUom(value)
-      || /met|mtr|vÃ¡ÂºÂ£i|fabric|cloth|yard/.test(value)
-      || /met|mtr|vÃ¡ÂºÂ£i|fabric|cloth|yard/.test(normalizeErpText(item.item_name ?? item.name ?? ''));
+      || /met|mtr|vai|fabric|cloth|yard/.test(value)
+      || /met|mtr|vai|fabric|cloth|yard/.test(normalizeErpText(item.item_name ?? item.name ?? ''));
   }
 
-  return /cai|piece|pcs|unit|nos|sp|hang|thanh pham|thÃƒÂ nh phÃ¡ÂºÂ©m|product/.test(value)
-    || /cai|piece|pcs|unit|nos|sp|hang|thanh pham|thÃƒÂ nh phÃ¡ÂºÂ©m|product/.test(normalizeErpText(item.item_name ?? item.name ?? ''))
+  return /cai|piece|pcs|unit|nos|sp|hang|thanh pham|product/.test(value)
+    || /cai|piece|pcs|unit|nos|sp|hang|thanh pham|product/.test(normalizeErpText(item.item_name ?? item.name ?? ''))
     || value.includes('thanh')
     || value.includes('product');
 }
@@ -768,9 +768,9 @@ async function getErpProfitLossForPeriod(fromDate: string, toDate: string, costC
   }
   const payload = (await response.json()) as { message?: { report_summary?: Array<{ label?: string; value?: number }> } };
   const summary = payload.message?.report_summary ?? [];
-  const income = summary.find((item) => item.label?.includes('TÃ¡Â»â€¢ng thu nhÃ¡ÂºÂ­p'))?.value ?? 0;
-  const expenses = summary.find((item) => item.label?.includes('TÃ¡Â»â€¢ng chi phÃƒÂ­'))?.value ?? 0;
-  const profit = summary.find((item) => item.label?.includes('LÃ¡Â»Â£i nhuÃ¡ÂºÂ­n'))?.value ?? income - expenses;
+  const income = summary.find((item) => item.label?.includes('Tổng thu nhập'))?.value ?? 0;
+  const expenses = summary.find((item) => item.label?.includes('Tổng chi phí'))?.value ?? 0;
+  const profit = summary.find((item) => item.label?.includes('Lợi nhuận'))?.value ?? income - expenses;
   return { income, expenses, profit };
 }
 
@@ -913,13 +913,13 @@ export async function getErpWarehouseReport(warehouse: string, itemGroup: string
       return {
         ...cached.value,
         dataStatus: 'stale' as const,
-        warningMessage: 'ERP phÃ¡ÂºÂ£n hÃ¡Â»â€œi chÃ¡ÂºÂ­m hoÃ¡ÂºÂ·c lÃ¡Â»â€”i tÃ¡ÂºÂ¡m thÃ¡Â»Âi. Ã„Âang hiÃ¡Â»Æ’n thÃ¡Â»â€¹ dÃ¡Â»Â¯ liÃ¡Â»â€¡u cache gÃ¡ÂºÂ§n nhÃ¡ÂºÂ¥t.',
+        warningMessage: 'ERP phản hồi chậm hoặc lỗi tạm thời. Đang hiển thị dữ liệu cache gần nhất.',
       };
     }
 
     if (!costCenter) throw error;
     monthly = Array.from({ length: 12 }, () => []);
-    itemWiseWarning = 'KhÃƒÂ´ng tÃ¡ÂºÂ£i Ã„â€˜Ã†Â°Ã¡Â»Â£c dÃ¡Â»Â¯ liÃ¡Â»â€¡u live theo chi nhÃƒÂ¡nh vÃƒÂ  thÃƒÂ¡ng trÃƒÂªn ERP; dÃ¡Â»Â¯ liÃ¡Â»â€¡u chi tiÃ¡ÂºÂ¿t Ã„â€˜ang chÃ†Â°a Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢.';
+    itemWiseWarning = 'Không tải được dữ liệu live theo chi nhánh và tháng trên ERP; dữ liệu chi tiết đang chưa đồng bộ.';
   }
   let rows = monthly.flat().filter((row) => matchesWarehouseReportRow(row, warehouse, itemGroup, unitType));
 
@@ -934,7 +934,7 @@ export async function getErpWarehouseReport(warehouse: string, itemGroup: string
 
   const productMap = new Map<string, { name: string; quantity: number; revenue: number }>();
   for (const row of rows) {
-    const sku = String(row.item_code ?? row.item_name ?? 'KhÃƒÂ´ng rÃƒÂµ');
+    const sku = String(row.item_code ?? row.item_name ?? 'Không rõ');
     const current = productMap.get(sku) ?? { name: String(row.item_name ?? sku), quantity: 0, revenue: 0 };
     current.quantity += toNumber(row.qty ?? row.invoiced_qty ?? row.stock_qty);
     current.revenue += toNumber(row.amount ?? row.total ?? row.base_amount);
@@ -945,7 +945,7 @@ export async function getErpWarehouseReport(warehouse: string, itemGroup: string
     const quantity = filtered.reduce((sum, row) => sum + toNumber(row.qty ?? row.invoiced_qty ?? row.stock_qty), 0);
     const revenue = filtered.reduce((sum, row) => sum + toNumber(row.amount ?? row.total ?? row.base_amount), 0);
     const invoices = new Set(filtered.map((row) => String(row.invoice ?? row.voucher_no ?? row.parent ?? '')).filter(Boolean));
-    return { label: `ThÃƒÂ¡ng ${index + 1}`, quantity, revenue, expenses: 0, orders: invoices.size };
+    return { label: `Tháng ${index + 1}`, quantity, revenue, expenses: 0, orders: invoices.size };
   });
   const totalRevenue = rows.reduce((sum, row) => sum + toNumber(row.amount ?? row.total ?? row.base_amount), 0);
   const totalQuantity = rows.reduce((sum, row) => sum + toNumber(row.qty ?? row.invoiced_qty ?? row.stock_qty), 0);
@@ -974,7 +974,7 @@ export async function getErpWarehouseReport(warehouse: string, itemGroup: string
           costCenter,
         );
         financialDataAvailable = true;
-        warningMessage = itemWiseWarning ?? 'P&L report ERP khÃƒÂ´ng khÃ¡ÂºÂ£ dÃ¡Â»Â¥ng; KPI Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃƒÂ­nh tÃ¡Â»Â« GL Entry theo cost center.';
+        warningMessage = itemWiseWarning ?? 'Báo cáo P&L ERP không khả dụng; KPI đã được tính từ GL Entry theo cost center.';
       } catch {
         selectedPnl = { income: 0, expenses: 0, profit: 0 };
         financialDataAvailable = false;
@@ -1137,11 +1137,11 @@ export async function getErpFashionPipelineData(fromDate?: string, toDate?: stri
   }
 
   const stages = [
-    { status: 'Draft', name: 'MÃ¡Â»â€ºi' },
-    { status: 'To Deliver', name: 'ChÃ¡Â»Â giao hÃƒÂ ng' },
-    { status: 'To Bill', name: 'ChÃ¡Â»Â lÃ¡ÂºÂ­p hÃƒÂ³a Ã„â€˜Ã†Â¡n' },
-    { status: 'Completed', name: 'ThÃƒÂ nh cÃƒÂ´ng' },
-    { status: 'Cancelled', name: 'Ã„ÂÃƒÂ£ hÃ¡Â»Â§y' },
+    { status: 'Draft', name: 'Mới' },
+    { status: 'To Deliver', name: 'Chờ giao hàng' },
+    { status: 'To Bill', name: 'Chờ lập hóa đơn' },
+    { status: 'Completed', name: 'Thành công' },
+    { status: 'Cancelled', name: 'Đã hủy' },
   ];
 
   return stages.map(({ status, name }) => ({
@@ -1160,7 +1160,7 @@ export async function getErpFashionMonthlyComparison(year: number) {
     const toDate = `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
     return getErpItemWiseSalesRows(fromDate, toDate, {
       warehouse: FASHION_QUAN_4_WAREHOUSE,
-      item_group: 'ThÃƒÂ nh phÃ¡ÂºÂ©m',
+      item_group: 'Thành phẩm',
     });
   }));
 
@@ -1172,7 +1172,7 @@ export async function getErpFashionMonthlyComparison(year: number) {
     const orderNumbers = new Set(fashionRows.map((row) => String(row.voucher_no ?? row.sales_invoice ?? row.invoice ?? row.parent ?? '')).filter(Boolean));
     const previousOrderNumbers = new Set(previousRows.map((row) => String(row.voucher_no ?? row.sales_invoice ?? row.invoice ?? row.parent ?? '')).filter(Boolean));
     return {
-      label: `ThÃƒÂ¡ng ${index + 1}`,
+      label: `Tháng ${index + 1}`,
       total: orderNumbers.size,
       quantity,
       delta: orderNumbers.size - previousOrderNumbers.size,
@@ -1229,11 +1229,11 @@ export async function getErpFabricProgress(fromDate: string, toDate: string, war
   }
 
   const stages = [
-    { name: 'Ã„ÂÃ†Â¡n vÃ¡ÂºÂ£i mÃ¡Â»â€ºi', statuses: ['Draft'] },
-    { name: 'Ã„Âang chuÃ¡ÂºÂ©n bÃ¡Â»â€¹ vÃ¡ÂºÂ£i', statuses: ['To Deliver'] },
-    { name: 'ChÃ¡Â»Â xuÃ¡ÂºÂ¥t hÃƒÂ³a Ã„â€˜Ã†Â¡n', statuses: ['To Bill'] },
-    { name: 'Ã„ÂÃƒÂ£ hoÃƒÂ n tÃ¡ÂºÂ¥t', statuses: ['Completed'] },
-    { name: 'Ã„ÂÃƒÂ£ hÃ¡Â»Â§y', statuses: ['Cancelled'] },
+    { name: 'Đơn vải mới', statuses: ['Draft'] },
+    { name: 'Đang chuẩn bị vải', statuses: ['To Deliver'] },
+    { name: 'Chờ xuất hóa đơn', statuses: ['To Bill'] },
+    { name: 'Đã hoàn tất', statuses: ['Completed'] },
+    { name: 'Đã hủy', statuses: ['Cancelled'] },
   ];
   const maxValue = Math.max(...stages.map((stage) => stage.statuses.reduce((sum, status) => sum + (statusCounts.get(status)?.size ?? 0), 0)), 1);
 
@@ -1257,7 +1257,7 @@ export async function getErpFabricMonthlyComparison(year: number, warehouse = FA
     const toDate = `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
     return getErpItemWiseSalesRows(fromDate, toDate, {
       warehouse,
-      item_group: 'VÃ¡ÂºÂ£i',
+      item_group: 'Vải',
     });
   }));
 
@@ -1274,7 +1274,7 @@ export async function getErpFabricMonthlyComparison(year: number, warehouse = FA
     const orderNumbers = new Set(meterRows.map((row) => String(row.voucher_no ?? row.sales_invoice ?? row.invoice ?? row.parent ?? '')).filter(Boolean));
     const previousOrderNumbers = new Set(previousMeterRows.map((row) => String(row.voucher_no ?? row.sales_invoice ?? row.invoice ?? row.parent ?? '')).filter(Boolean));
     return {
-      label: `ThÃƒÂ¡ng ${index + 1}`,
+      label: `Tháng ${index + 1}`,
       total: orderNumbers.size,
       delta: orderNumbers.size - previousOrderNumbers.size,
       meters,
