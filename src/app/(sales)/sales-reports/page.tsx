@@ -264,9 +264,6 @@ export default function SalesReportsPage() {
       revenue: normalizedItems.reduce((sum, item) => sum + item.revenue, 0),
     };
 
-    const nextReports = [nextReport, ...reports];
-    setReports(nextReports);
-    window.localStorage.setItem(storageKey, JSON.stringify(nextReports));
     const response = await fetch('/api/sales-reports', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -278,6 +275,13 @@ export default function SalesReportsPage() {
       window.alert(payload.message ?? 'Không thể lưu báo cáo lên hệ thống.');
       return;
     }
+
+    const payload = await response.json().catch(() => null) as { report?: Partial<SalesReport> } | null;
+    const savedReport = payload?.report ? normalizeLegacyReport(payload.report) : nextReport;
+    const nextReports = [savedReport, ...reports.filter((report) => report.id !== savedReport.id)];
+    setReports(nextReports);
+    window.localStorage.setItem(storageKey, JSON.stringify(nextReports));
+    window.dispatchEvent(new Event('gusa-sales-report-sync'));
     setForm({ ...emptyForm, date: form.date, category: form.category });
     setSaved(true);
   };

@@ -99,9 +99,11 @@ export default function DailySalesReportTable({ category }: { category: Category
     const timer = window.setInterval(sync, 2000);
     window.addEventListener('storage', sync);
     window.addEventListener('focus', sync);
+    window.addEventListener('gusa-sales-report-sync', sync);
     return () => {
       window.removeEventListener('storage', sync);
       window.removeEventListener('focus', sync);
+      window.removeEventListener('gusa-sales-report-sync', sync);
       window.clearInterval(timer);
     };
   }, []);
