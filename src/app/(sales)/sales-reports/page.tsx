@@ -136,18 +136,7 @@ export default function SalesReportsPage() {
         const payload = await response.json();
         const remoteReports: SalesReport[] = Array.isArray(payload.reports) ? payload.reports.map(normalizeLegacyReport) : [];
         setReports(remoteReports);
-        const legacyStored = window.localStorage.getItem(storageKey);
-        const legacyReports: SalesReport[] = legacyStored ? (JSON.parse(legacyStored) as Array<Partial<SalesReport>>).map(normalizeLegacyReport) : [];
-        const remoteIds = new Set(remoteReports.map((report) => report.id));
-        const missingReports = legacyReports.filter((report) => !remoteIds.has(report.id));
-        if (missingReports.length) {
-          await Promise.all(missingReports.map((report) => fetch('/api/sales-reports', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(report),
-          }).catch(() => null)));
-          setReports([...missingReports, ...remoteReports]);
-        }
+        window.localStorage.setItem(storageKey, JSON.stringify(remoteReports));
       })
       .catch(() => {
         try {
