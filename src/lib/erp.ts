@@ -308,8 +308,6 @@ export async function checkErpConnection() {
     return { connected: false, status: 'not-configured' as const };
   }
 
-  const hasSession = Boolean(cookie && csrfToken) || Boolean(apiKey && apiSecret);
-
   if (apiKey && apiSecret) {
     await ensureErpSessionCookie();
   }
@@ -329,24 +327,8 @@ export async function checkErpConnection() {
       };
     }
 
-    if (hasSession) {
-      return {
-        connected: true,
-        status: 'connected' as const,
-        user: 'ERP session configured',
-      };
-    }
-
     return { connected: false, status: 'unauthorized' as const, httpStatus: response.status };
   } catch {
-    if (hasSession) {
-      return {
-        connected: true,
-        status: 'connected' as const,
-        user: 'ERP session configured',
-      };
-    }
-
     return { connected: false, status: 'unreachable' as const };
   }
 }
