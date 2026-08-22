@@ -26,9 +26,9 @@ function toNumber(value: unknown) {
 const formatVnd = (value: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 
-const FASHION_QUAN_4_WAREHOUSE = 'Kho ThÃ¡Â»Âi Trang Q4 - CTTGVN';
-const FABRIC_QUAN_4_WAREHOUSE = 'Kho vÃ¡ÂºÂ£i QuÃ¡ÂºÂ­n 4 - CTTGVN';
-const FABRIC_BEN_THANH_WAREHOUSE = 'Kho vÃ¡ÂºÂ£i BÃ¡ÂºÂ¿n ThÃƒÂ nh - CTTGVN';
+const FASHION_QUAN_4_WAREHOUSE = 'Kho Thời Trang Q4 - CTTGVN';
+const FABRIC_QUAN_4_WAREHOUSE = 'Kho vải Quận 4 - CTTGVN';
+const FABRIC_BEN_THANH_WAREHOUSE = 'Kho vải Bến Thành - CTTGVN';
 
 type ErpWarehouseMonthly = { label: string; quantity: number; revenue: number; expenses: number; orders: number };
 
@@ -70,11 +70,11 @@ function cleanEnvValue(value: string | undefined) {
 
 const ERP_COMPANY_ALIASES = [
   'CONG TY TNHH GUSA VIET NAM',
-  'CÃƒÂ´ng ty TNHH GUSA ViÃ¡Â»â€¡t Nam',
+  'Công ty TNHH GUSA Việt Nam',
   'Cong ty TNHH GUSA Viet Nam',
   'GUSA VIET NAM',
   'GUSA Viet Nam',
-  'CÃƒâ€NG TY TNHH GUSA VIÃ¡Â»â€ T NAM',
+  'CÔNG TY TNHH GUSA VIỆT NAM',
   'CTTNHH GUSA VIET NAM',
 ];
 
@@ -514,10 +514,10 @@ async function getMonthlyOrderComparison(baseUrl: string) {
   return totals.map((total, index) => {
     const previous = totals[index - 1] ?? 0;
     return {
-      label: `ThÃƒÂ¡ng ${index + 1}`,
+      label: `Tháng ${index + 1}`,
       total,
       delta: total - previous,
-      change: previous ? `${total >= previous ? '+' : ''}${(((total - previous) / previous) * 100).toFixed(1)}%` : 'MÃ¡Â»â€ºi',
+      change: previous ? `${total >= previous ? '+' : ''}${(((total - previous) / previous) * 100).toFixed(1)}%` : 'Mới',
     };
   });
 }
@@ -531,11 +531,11 @@ export async function getErpPipelineData(fromDate?: string, toDate?: string) {
   );
 
   return [
-    { name: 'MÃ¡Â»â€ºi', value: counts[0] ?? 0 },
-    { name: 'ChÃ¡Â»Â giao hÃƒÂ ng', value: counts[1] ?? 0 },
-    { name: 'ChÃ¡Â»Â lÃ¡ÂºÂ­p hÃƒÂ³a Ã„â€˜Ã†Â¡n', value: counts[2] ?? 0 },
-    { name: 'ThÃƒÂ nh cÃƒÂ´ng', value: counts[3] ?? 0 },
-    { name: 'Ã„ÂÃƒÂ£ hÃ¡Â»Â§y', value: counts[4] ?? 0 },
+    { name: 'Mới', value: counts[0] ?? 0 },
+    { name: 'Chờ giao hàng', value: counts[1] ?? 0 },
+    { name: 'Chờ lập hóa đơn', value: counts[2] ?? 0 },
+    { name: 'Thành công', value: counts[3] ?? 0 },
+    { name: 'Đã hủy', value: counts[4] ?? 0 },
   ];
 }
 
@@ -1549,11 +1549,11 @@ async function getFrappeResourceSummary(): Promise<ErpDashboardPayload | null> {
   const aiPlan = latestMonth
     ? [
         monthlyRevenueChange < 0
-          ? `Doanh thu thÃƒÂ¡ng ${latestMonth.label} Ã„â€˜ang giÃ¡ÂºÂ£m ${Math.abs(monthlyRevenueChange).toFixed(1)}% so vÃ¡Â»â€ºi thÃƒÂ¡ng trÃ†Â°Ã¡Â»â€ºc; nÃƒÂªn rÃƒÂ  soÃƒÂ¡t kÃƒÂªnh bÃƒÂ¡n vÃƒÂ  tÃ¡ÂºÂ­p trung ngÃƒÂ¢n sÃƒÂ¡ch vÃƒÂ o nhÃƒÂ³m cÃƒÂ³ tÃ¡Â»Â· suÃ¡ÂºÂ¥t lÃ¡Â»Â£i nhuÃ¡ÂºÂ­n cao.`
-          : `Doanh thu thÃƒÂ¡ng ${latestMonth.label} Ã„â€˜ang tÃ„Æ’ng ${monthlyRevenueChange.toFixed(1)}%; nÃƒÂªn duy trÃƒÂ¬ nhÃƒÂ³m sÃ¡ÂºÂ£n phÃ¡ÂºÂ©m hiÃ¡Â»â€¡u quÃ¡ÂºÂ£ vÃƒÂ  chuÃ¡ÂºÂ©n bÃ¡Â»â€¹ tÃ¡Â»â€œn kho cho thÃƒÂ¡ng tiÃ¡ÂºÂ¿p theo.`,
+          ? `Doanh thu tháng ${latestMonth.label} đang giảm ${Math.abs(monthlyRevenueChange).toFixed(1)}% so với tháng trước; nên rà soát kênh bán và tập trung ngân sách vào nhóm có tỷ suất lợi nhuận cao.`
+          : `Doanh thu tháng ${latestMonth.label} đang tăng ${monthlyRevenueChange.toFixed(1)}%; nên duy trì nhóm sản phẩm hiệu quả và chuẩn bị tồn kho cho tháng tiếp theo.`,
         latestMonth.profit < 0
-          ? 'LÃ¡Â»Â£i nhuÃ¡ÂºÂ­n thÃƒÂ¡ng gÃ¡ÂºÂ§n nhÃ¡ÂºÂ¥t Ã„â€˜ang ÃƒÂ¢m; cÃ¡ÂºÂ§n kiÃ¡Â»Æ’m tra ngay giÃƒÂ¡ vÃ¡Â»â€˜n, chi phÃƒÂ­ bÃƒÂ¡n hÃƒÂ ng vÃƒÂ  cÃƒÂ¡c khoÃ¡ÂºÂ£n giÃ¡ÂºÂ£m trÃ¡Â»Â« doanh thu.'
-          : `BiÃƒÂªn lÃ¡Â»Â£i nhuÃ¡ÂºÂ­n thÃƒÂ¡ng gÃ¡ÂºÂ§n nhÃ¡ÂºÂ¥t lÃƒÂ  ${((latestMonth.profit / Math.max(latestMonth.revenue, 1)) * 100).toFixed(1)}%; nÃƒÂªn Ã†Â°u tiÃƒÂªn cÃƒÂ¡c Ã„â€˜Ã†Â¡n hÃƒÂ ng giÃ¡Â»Â¯ Ã„â€˜Ã†Â°Ã¡Â»Â£c biÃƒÂªn nÃƒÂ y trÃ¡Â»Å¸ lÃƒÂªn.`,
+          ? 'Lợi nhuận tháng gần nhất đang âm; cần kiểm tra ngay giá vốn, chi phí bán hàng và các khoản giảm trừ doanh thu.'
+          : `Biên lợi nhuận tháng gần nhất là ${((latestMonth.profit / Math.max(latestMonth.revenue, 1)) * 100).toFixed(1)}%; nên ưu tiên các đơn hàng giữ được biên này trở lên.`,
       ]
     : ['ChÃ†Â°a Ã„â€˜Ã¡Â»Â§ dÃ¡Â»Â¯ liÃ¡Â»â€¡u thÃƒÂ¡ng Ã„â€˜Ã¡Â»Æ’ Ã„â€˜Ã†Â°a ra Ã„â€˜Ã¡Â»â€¹nh hÃ†Â°Ã¡Â»â€ºng; cÃ¡ÂºÂ§n kiÃ¡Â»Æ’m tra lÃ¡ÂºÂ¡i bÃƒÂ¡o cÃƒÂ¡o kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£ kinh doanh trong ERP.'];
 
@@ -1563,17 +1563,17 @@ async function getFrappeResourceSummary(): Promise<ErpDashboardPayload | null> {
     monthlyOrderComparison,
     aiPlan,
     metrics: [
-      { label: `Doanh thu lÃ…Â©y kÃ¡ÂºÂ¿ ${currentYear}`, value: formatVnd(revenue), change: `${revenueChange >= 0 ? '+' : ''}${revenueChange.toFixed(1)}%`, tone: revenueChange >= 0 ? 'up' : 'down' },
-      { label: `LÃ¡Â»Â£i nhuÃ¡ÂºÂ­n lÃ…Â©y kÃ¡ÂºÂ¿ ${currentYear}`, value: formatVnd(profit), change: `${profitChange >= 0 ? '+' : ''}${profitChange.toFixed(1)}%`, tone: profitChange >= 0 ? 'up' : 'down' },
-      { label: 'KhÃƒÂ¡ch hÃƒÂ ng', value: String(customerCount), change: formatChange(customerCount, previousCustomerCount), tone: customerCount >= previousCustomerCount ? 'up' : 'down' },
-      { label: 'MÃ¡ÂºÂ·t hÃƒÂ ng', value: String(itemCount), change: formatChange(itemCount, previousItemCount), tone: itemCount >= previousItemCount ? 'up' : 'down' },
+      { label: `Doanh thu lũy kế ${currentYear}`, value: formatVnd(revenue), change: `${revenueChange >= 0 ? '+' : ''}${revenueChange.toFixed(1)}%`, tone: revenueChange >= 0 ? 'up' : 'down' },
+      { label: `Lợi nhuận lũy kế ${currentYear}`, value: formatVnd(profit), change: `${profitChange >= 0 ? '+' : ''}${profitChange.toFixed(1)}%`, tone: profitChange >= 0 ? 'up' : 'down' },
+      { label: 'Khách hàng', value: String(customerCount), change: formatChange(customerCount, previousCustomerCount), tone: customerCount >= previousCustomerCount ? 'up' : 'down' },
+      { label: 'Mặt hàng', value: String(itemCount), change: formatChange(itemCount, previousItemCount), tone: itemCount >= previousItemCount ? 'up' : 'down' },
     ],
     revenueBars: dashboardData.revenueBars,
     aiMessages: [
-      `Ã„ÂÃƒÂ£ Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢ ${customerCount} khÃƒÂ¡ch hÃƒÂ ng tÃ¡Â»Â« ERP GUSAZ Desk.`,
-      `Doanh thu theo bÃƒÂ¡o cÃƒÂ¡o kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£ kinh doanh Ã„â€˜ang Ã¡Â»Å¸ mÃ¡Â»Â©c ${formatVnd(revenue)}.` ,
-      `LÃ¡Â»Â£i nhuÃ¡ÂºÂ­n sau chi phÃƒÂ­ theo ERP lÃƒÂ  ${formatVnd(profit)}.` ,
-      `SÃ¡Â»â€˜ lÃ†Â°Ã¡Â»Â£ng sÃ¡ÂºÂ£n phÃ¡ÂºÂ©m Ã„â€˜ang Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢ lÃƒÂ  ${itemCount}; nÃƒÂªn kiÃ¡Â»Æ’m tra tÃ¡Â»â€œn kho trong 48 giÃ¡Â»Â tÃ¡Â»â€ºi.`,
+      `Đã đồng bộ ${customerCount} khách hàng từ ERP GUSAZ Desk.`,
+      `Doanh thu theo báo cáo kết quả kinh doanh đang ở mức ${formatVnd(revenue)}.`,
+      `Lợi nhuận sau chi phí theo ERP là ${formatVnd(profit)}.`,
+      `Số lượng sản phẩm đang đồng bộ là ${itemCount}; nên kiểm tra tồn kho trong 48 giờ tới.`,
     ],
     pipeline: pipelineCounts,
   };
