@@ -3,7 +3,7 @@ services:
     name: gusa
     runtime: node
     plan: starter
-    buildCommand: npm ci && npx prisma generate && npm run build
+    buildCommand: npm ci && npx prisma generate && DATABASE_URL=file:./build.db npx prisma migrate deploy && DATABASE_URL=file:./build.db npm run build
     startCommand: npm run start -- -H 0.0.0.0 -p $PORT
     disk:
       name: gusa-data
