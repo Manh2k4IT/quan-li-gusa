@@ -229,7 +229,8 @@ function getErpHeaders() {
   const apiKey = cleanEnvValue(process.env.ERP_API_KEY || process.env.ERP_USERNAME);
   const apiSecret = cleanEnvValue(process.env.ERP_API_SECRET || process.env.ERP_PASSWORD);
   const apiToken = cleanEnvValue(process.env.ERP_API_TOKEN);
-  const cookie = erpSessionCookieCache.value || cleanEnvValue(process.env.ERP_COOKIE || process.env.ERP_SESSION_COOKIE);
+  const configuredCookie = erpSessionCookieCache.value || cleanEnvValue(process.env.ERP_COOKIE || process.env.ERP_SESSION_COOKIE);
+  const cookie = apiKey && apiSecret ? '' : configuredCookie;
   const csrfToken = cleanEnvValue(process.env.ERP_CSRF_TOKEN || process.env.ERP_CSRF);
 
   if (apiKey && apiSecret) {
