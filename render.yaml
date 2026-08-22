@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: starter
     buildCommand: npm ci && npx prisma generate && npm run build
-    startCommand: npx prisma migrate deploy && npm run db:seed && npm run start -- -H 0.0.0.0 -p $PORT
+    startCommand: npm run start -- -H 0.0.0.0 -p $PORT
     disk:
       name: gusa-data
       mountPath: /var/data
