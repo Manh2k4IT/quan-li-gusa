@@ -432,9 +432,9 @@ async function getProfitAndLossSummary(baseUrl: string, periodicity: 'Yearly' | 
     return toNumber(entry?.value);
   };
 
-  const income = getSummaryValue('TÃ¡Â»â€¢ng thu nhÃ¡ÂºÂ­p', 'Total Income', 'Income', 'Thu nhÃ¡ÂºÂ­p', 'Doanh thu', 'Revenue');
-  const expenses = getSummaryValue('TÃ¡Â»â€¢ng chi phÃƒÂ­', 'Total Expense', 'Expense', 'Chi phÃƒÂ­', 'Cost', 'Expenses');
-  const profit = getSummaryValue('LÃ¡Â»Â£i nhuÃ¡ÂºÂ­n', 'Net Profit', 'Profit', 'LÃƒÂ£i/lÃ¡Â»â€”', 'Net Income');
+  const income = getSummaryValue('Tổng thu nhập', 'Total Income', 'Income', 'Thu nhập', 'Doanh thu', 'Revenue');
+  const expenses = getSummaryValue('Tổng chi phí', 'Total Expense', 'Expense', 'Chi phí', 'Cost', 'Expenses');
+  const profit = getSummaryValue('Lợi nhuận', 'Net Profit', 'Profit', 'Lãi/lỗ', 'Net Income');
 
   const chart = payload.message?.chart?.data;
   const datasets = chart?.datasets ?? [];
@@ -447,9 +447,9 @@ async function getProfitAndLossSummary(baseUrl: string, periodicity: 'Yearly' | 
     return (dataset?.values ?? []).map((value) => toNumber(value));
   };
 
-  const incomeValues = getValues('Thu nhÃ¡ÂºÂ­p', 'Income', 'Revenue', 'Doanh thu', 'Total Income');
-  const expenseValues = getValues('Chi phÃƒÂ­', 'Expense', 'Costs', 'Expenses', 'Total Expense');
-  const profitValues = getValues('LÃƒÂ£i/lÃ¡Â»â€”', 'Profit', 'Net Profit', 'Net Income', 'Profit and Loss');
+  const incomeValues = getValues('Thu nhập', 'Income', 'Revenue', 'Doanh thu', 'Total Income');
+  const expenseValues = getValues('Chi phí', 'Expense', 'Costs', 'Expenses', 'Total Expense');
+  const profitValues = getValues('Lãi/lỗ', 'Profit', 'Net Profit', 'Net Income', 'Profit and Loss');
   const labels = chart?.labels ?? [];
   const monthlyPerformance = labels.map((label, index) => ({
     label,
@@ -1447,7 +1447,7 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
     return {
       sku,
       name: String(item.item_name ?? item.name ?? sku),
-      category: String(item.item_group ?? 'ChÃ†Â°a phÃƒÂ¢n loÃ¡ÂºÂ¡i'),
+      category: String(item.item_group ?? 'Chưa phân loại'),
       unitPrice: toNumber(item.standard_rate),
       soldQuantity: sales.quantity,
       orderCount: reportOrderCount || invoiceOrderCount || orderOrderCount,
@@ -1459,7 +1459,7 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
 }
 
 function formatChange(current: number, previous: number) {
-  if (!previous) return 'MÃ¡Â»â€ºi';
+  if (!previous) return 'Mới';
   const change = ((current - previous) / previous) * 100;
   return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
 }
