@@ -26,9 +26,9 @@ function toNumber(value: unknown) {
 const formatVnd = (value: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 
-const FASHION_QUAN_4_WAREHOUSE = 'Kho Thời Trang Q4 - CTTGVN';
-const FABRIC_QUAN_4_WAREHOUSE = 'Kho vải Quận 4 - CTTGVN';
-const FABRIC_BEN_THANH_WAREHOUSE = 'Kho vải Bến Thành - CTTGVN';
+const FASHION_QUAN_4_WAREHOUSE = 'Kho ThÃ¡Â»Âi Trang Q4 - CTTGVN';
+const FABRIC_QUAN_4_WAREHOUSE = 'Kho vÃ¡ÂºÂ£i QuÃ¡ÂºÂ­n 4 - CTTGVN';
+const FABRIC_BEN_THANH_WAREHOUSE = 'Kho vÃ¡ÂºÂ£i BÃ¡ÂºÂ¿n ThÃƒÂ nh - CTTGVN';
 
 type ErpWarehouseMonthly = { label: string; quantity: number; revenue: number; expenses: number; orders: number };
 
@@ -60,8 +60,8 @@ const ERP_WAREHOUSE_REPORT_CACHE_TTL_MS = 3 * 60 * 1000;
 const erpWarehouseReportCache = new Map<string, { expiresAt: number; value: ErpWarehouseReport }>();
 
 const verifiedWarehousePnlFallbacks = new Map([
-  ['CNO3 - Thời Trang Q4|2026|7', { income: 400368500, expenses: 19006128, profit: 381362372 }],
-  ['CNO3 - Thời Trang Q4|2026|8', { income: 113869390, expenses: 6500890, profit: 107368500 }],
+  ['CNO3 - ThÃ¡Â»Âi Trang Q4|2026|7', { income: 400368500, expenses: 19006128, profit: 381362372 }],
+  ['CNO3 - ThÃ¡Â»Âi Trang Q4|2026|8', { income: 113869390, expenses: 6500890, profit: 107368500 }],
 ]);
 
 function cleanEnvValue(value: string | undefined) {
@@ -70,11 +70,11 @@ function cleanEnvValue(value: string | undefined) {
 
 const ERP_COMPANY_ALIASES = [
   'CONG TY TNHH GUSA VIET NAM',
-  'Công ty TNHH GUSA Việt Nam',
+  'CÃƒÂ´ng ty TNHH GUSA ViÃ¡Â»â€¡t Nam',
   'Cong ty TNHH GUSA Viet Nam',
   'GUSA VIET NAM',
   'GUSA Viet Nam',
-  'CÔNG TY TNHH GUSA VIỆT NAM',
+  'CÃƒâ€NG TY TNHH GUSA VIÃ¡Â»â€ T NAM',
   'CTTNHH GUSA VIET NAM',
 ];
 
@@ -229,8 +229,7 @@ function getErpHeaders() {
   const apiKey = cleanEnvValue(process.env.ERP_API_KEY || process.env.ERP_USERNAME);
   const apiSecret = cleanEnvValue(process.env.ERP_API_SECRET || process.env.ERP_PASSWORD);
   const apiToken = cleanEnvValue(process.env.ERP_API_TOKEN);
-  const configuredCookie = erpSessionCookieCache.value || cleanEnvValue(process.env.ERP_COOKIE || process.env.ERP_SESSION_COOKIE);
-  const cookie = apiKey && apiSecret ? '' : configuredCookie;
+  const cookie = erpSessionCookieCache.value || cleanEnvValue(process.env.ERP_COOKIE || process.env.ERP_SESSION_COOKIE);
   const csrfToken = cleanEnvValue(process.env.ERP_CSRF_TOKEN || process.env.ERP_CSRF);
 
   if (apiKey && apiSecret) {
@@ -433,9 +432,9 @@ async function getProfitAndLossSummary(baseUrl: string, periodicity: 'Yearly' | 
     return toNumber(entry?.value);
   };
 
-  const income = getSummaryValue('Tổng thu nhập', 'Total Income', 'Income', 'Thu nhập', 'Doanh thu', 'Revenue');
-  const expenses = getSummaryValue('Tổng chi phí', 'Total Expense', 'Expense', 'Chi phí', 'Cost', 'Expenses');
-  const profit = getSummaryValue('Lợi nhuận', 'Net Profit', 'Profit', 'Lãi/lỗ', 'Net Income');
+  const income = getSummaryValue('TÃ¡Â»â€¢ng thu nhÃ¡ÂºÂ­p', 'Total Income', 'Income', 'Thu nhÃ¡ÂºÂ­p', 'Doanh thu', 'Revenue');
+  const expenses = getSummaryValue('TÃ¡Â»â€¢ng chi phÃƒÂ­', 'Total Expense', 'Expense', 'Chi phÃƒÂ­', 'Cost', 'Expenses');
+  const profit = getSummaryValue('LÃ¡Â»Â£i nhuÃ¡ÂºÂ­n', 'Net Profit', 'Profit', 'LÃƒÂ£i/lÃ¡Â»â€”', 'Net Income');
 
   const chart = payload.message?.chart?.data;
   const datasets = chart?.datasets ?? [];
@@ -448,9 +447,9 @@ async function getProfitAndLossSummary(baseUrl: string, periodicity: 'Yearly' | 
     return (dataset?.values ?? []).map((value) => toNumber(value));
   };
 
-  const incomeValues = getValues('Thu nhập', 'Income', 'Revenue', 'Doanh thu', 'Total Income');
-  const expenseValues = getValues('Chi phí', 'Expense', 'Costs', 'Expenses', 'Total Expense');
-  const profitValues = getValues('Lãi/lỗ', 'Profit', 'Net Profit', 'Net Income', 'Profit and Loss');
+  const incomeValues = getValues('Thu nhÃ¡ÂºÂ­p', 'Income', 'Revenue', 'Doanh thu', 'Total Income');
+  const expenseValues = getValues('Chi phÃƒÂ­', 'Expense', 'Costs', 'Expenses', 'Total Expense');
+  const profitValues = getValues('LÃƒÂ£i/lÃ¡Â»â€”', 'Profit', 'Net Profit', 'Net Income', 'Profit and Loss');
   const labels = chart?.labels ?? [];
   const monthlyPerformance = labels.map((label, index) => ({
     label,
@@ -515,10 +514,10 @@ async function getMonthlyOrderComparison(baseUrl: string) {
   return totals.map((total, index) => {
     const previous = totals[index - 1] ?? 0;
     return {
-      label: `Tháng ${index + 1}`,
+      label: `ThÃƒÂ¡ng ${index + 1}`,
       total,
       delta: total - previous,
-      change: previous ? `${total >= previous ? '+' : ''}${(((total - previous) / previous) * 100).toFixed(1)}%` : 'Mới',
+      change: previous ? `${total >= previous ? '+' : ''}${(((total - previous) / previous) * 100).toFixed(1)}%` : 'MÃ¡Â»â€ºi',
     };
   });
 }
@@ -532,11 +531,11 @@ export async function getErpPipelineData(fromDate?: string, toDate?: string) {
   );
 
   return [
-    { name: 'Mới', value: counts[0] ?? 0 },
-    { name: 'Chờ giao hàng', value: counts[1] ?? 0 },
-    { name: 'Chờ lập hóa đơn', value: counts[2] ?? 0 },
-    { name: 'Thành công', value: counts[3] ?? 0 },
-    { name: 'Đã hủy', value: counts[4] ?? 0 },
+    { name: 'MÃ¡Â»â€ºi', value: counts[0] ?? 0 },
+    { name: 'ChÃ¡Â»Â giao hÃƒÂ ng', value: counts[1] ?? 0 },
+    { name: 'ChÃ¡Â»Â lÃ¡ÂºÂ­p hÃƒÂ³a Ã„â€˜Ã†Â¡n', value: counts[2] ?? 0 },
+    { name: 'ThÃƒÂ nh cÃƒÂ´ng', value: counts[3] ?? 0 },
+    { name: 'Ã„ÂÃƒÂ£ hÃ¡Â»Â§y', value: counts[4] ?? 0 },
   ];
 }
 
@@ -606,9 +605,9 @@ function matchesWarehouse(item: Record<string, unknown>, warehouse: string) {
 
   const synonyms = new Set<string>([
     targetWarehouse,
-    targetWarehouse.replace(/quan 4|quận 4|q4/g, 'thoi trang q4'),
-    targetWarehouse.replace(/thoi trang|thời trang/g, 'q4'),
-    targetWarehouse.replace(/thoi trang|thời trang|quan 4|quận 4|q4/g, 'thoi trang'),
+    targetWarehouse.replace(/quan 4|quÃ¡ÂºÂ­n 4|q4/g, 'thoi trang q4'),
+    targetWarehouse.replace(/thoi trang|thÃ¡Â»Âi trang/g, 'q4'),
+    targetWarehouse.replace(/thoi trang|thÃ¡Â»Âi trang|quan 4|quÃ¡ÂºÂ­n 4|q4/g, 'thoi trang'),
     targetWarehouse.replace(/kho /g, ''),
   ]);
 
@@ -620,7 +619,7 @@ function matchesWarehouse(item: Record<string, unknown>, warehouse: string) {
       || compact.includes(itemCompact)
       || (targetCompact && itemCompact.includes(targetCompact))
       || (targetCompact && targetCompact.includes(itemCompact));
-  }) || /q4|thoi trang|thoi-trang|thời trang/.test(itemWarehouse) && /q4|thoi trang|thoi-trang|thời trang/.test(targetWarehouse);
+  }) || /q4|thoi trang|thoi-trang|thÃ¡Â»Âi trang/.test(itemWarehouse) && /q4|thoi trang|thoi-trang|thÃ¡Â»Âi trang/.test(targetWarehouse);
 }
 
 function matchesItemGroup(item: Record<string, unknown>, itemGroup: string) {
@@ -642,7 +641,7 @@ function matchesItemGroup(item: Record<string, unknown>, itemGroup: string) {
     || targetCompact.includes(groupCompact)
     || itemNameCompact.includes(targetCompact)
     || targetCompact.includes(itemNameCompact)
-    || /thanh pham|thành phẩm|fashion|garment|product/.test(groupValue + ' ' + itemName) && /thanh pham|thành phẩm|fashion|garment|product/.test(targetGroup);
+    || /thanh pham|thÃƒÂ nh phÃ¡ÂºÂ©m|fashion|garment|product/.test(groupValue + ' ' + itemName) && /thanh pham|thÃƒÂ nh phÃ¡ÂºÂ©m|fashion|garment|product/.test(targetGroup);
 }
 
 function matchesUnitType(item: Record<string, unknown>, unitType: 'piece' | 'meter') {
@@ -650,12 +649,12 @@ function matchesUnitType(item: Record<string, unknown>, unitType: 'piece' | 'met
 
   if (unitType === 'meter') {
     return isMeterUom(value)
-      || /met|mtr|vải|fabric|cloth|yard/.test(value)
-      || /met|mtr|vải|fabric|cloth|yard/.test(normalizeErpText(item.item_name ?? item.name ?? ''));
+      || /met|mtr|vÃ¡ÂºÂ£i|fabric|cloth|yard/.test(value)
+      || /met|mtr|vÃ¡ÂºÂ£i|fabric|cloth|yard/.test(normalizeErpText(item.item_name ?? item.name ?? ''));
   }
 
-  return /cai|piece|pcs|unit|nos|sp|hang|thanh pham|thành phẩm|product/.test(value)
-    || /cai|piece|pcs|unit|nos|sp|hang|thanh pham|thành phẩm|product/.test(normalizeErpText(item.item_name ?? item.name ?? ''))
+  return /cai|piece|pcs|unit|nos|sp|hang|thanh pham|thÃƒÂ nh phÃ¡ÂºÂ©m|product/.test(value)
+    || /cai|piece|pcs|unit|nos|sp|hang|thanh pham|thÃƒÂ nh phÃ¡ÂºÂ©m|product/.test(normalizeErpText(item.item_name ?? item.name ?? ''))
     || value.includes('thanh')
     || value.includes('product');
 }
@@ -769,9 +768,9 @@ async function getErpProfitLossForPeriod(fromDate: string, toDate: string, costC
   }
   const payload = (await response.json()) as { message?: { report_summary?: Array<{ label?: string; value?: number }> } };
   const summary = payload.message?.report_summary ?? [];
-  const income = summary.find((item) => item.label?.includes('Tổng thu nhập'))?.value ?? 0;
-  const expenses = summary.find((item) => item.label?.includes('Tổng chi phí'))?.value ?? 0;
-  const profit = summary.find((item) => item.label?.includes('Lợi nhuận'))?.value ?? income - expenses;
+  const income = summary.find((item) => item.label?.includes('TÃ¡Â»â€¢ng thu nhÃ¡ÂºÂ­p'))?.value ?? 0;
+  const expenses = summary.find((item) => item.label?.includes('TÃ¡Â»â€¢ng chi phÃƒÂ­'))?.value ?? 0;
+  const profit = summary.find((item) => item.label?.includes('LÃ¡Â»Â£i nhuÃ¡ÂºÂ­n'))?.value ?? income - expenses;
   return { income, expenses, profit };
 }
 
@@ -914,13 +913,13 @@ export async function getErpWarehouseReport(warehouse: string, itemGroup: string
       return {
         ...cached.value,
         dataStatus: 'stale' as const,
-        warningMessage: 'ERP phản hồi chậm hoặc lỗi tạm thời. Đang hiển thị dữ liệu cache gần nhất.',
+        warningMessage: 'ERP phÃ¡ÂºÂ£n hÃ¡Â»â€œi chÃ¡ÂºÂ­m hoÃ¡ÂºÂ·c lÃ¡Â»â€”i tÃ¡ÂºÂ¡m thÃ¡Â»Âi. Ã„Âang hiÃ¡Â»Æ’n thÃ¡Â»â€¹ dÃ¡Â»Â¯ liÃ¡Â»â€¡u cache gÃ¡ÂºÂ§n nhÃ¡ÂºÂ¥t.',
       };
     }
 
     if (!costCenter) throw error;
     monthly = Array.from({ length: 12 }, () => []);
-    itemWiseWarning = 'Không tải được dữ liệu live theo chi nhánh và tháng trên ERP; dữ liệu chi tiết đang chưa đồng bộ.';
+    itemWiseWarning = 'KhÃƒÂ´ng tÃ¡ÂºÂ£i Ã„â€˜Ã†Â°Ã¡Â»Â£c dÃ¡Â»Â¯ liÃ¡Â»â€¡u live theo chi nhÃƒÂ¡nh vÃƒÂ  thÃƒÂ¡ng trÃƒÂªn ERP; dÃ¡Â»Â¯ liÃ¡Â»â€¡u chi tiÃ¡ÂºÂ¿t Ã„â€˜ang chÃ†Â°a Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢.';
   }
   let rows = monthly.flat().filter((row) => matchesWarehouseReportRow(row, warehouse, itemGroup, unitType));
 
@@ -935,7 +934,7 @@ export async function getErpWarehouseReport(warehouse: string, itemGroup: string
 
   const productMap = new Map<string, { name: string; quantity: number; revenue: number }>();
   for (const row of rows) {
-    const sku = String(row.item_code ?? row.item_name ?? 'Không rõ');
+    const sku = String(row.item_code ?? row.item_name ?? 'KhÃƒÂ´ng rÃƒÂµ');
     const current = productMap.get(sku) ?? { name: String(row.item_name ?? sku), quantity: 0, revenue: 0 };
     current.quantity += toNumber(row.qty ?? row.invoiced_qty ?? row.stock_qty);
     current.revenue += toNumber(row.amount ?? row.total ?? row.base_amount);
@@ -946,7 +945,7 @@ export async function getErpWarehouseReport(warehouse: string, itemGroup: string
     const quantity = filtered.reduce((sum, row) => sum + toNumber(row.qty ?? row.invoiced_qty ?? row.stock_qty), 0);
     const revenue = filtered.reduce((sum, row) => sum + toNumber(row.amount ?? row.total ?? row.base_amount), 0);
     const invoices = new Set(filtered.map((row) => String(row.invoice ?? row.voucher_no ?? row.parent ?? '')).filter(Boolean));
-    return { label: `Tháng ${index + 1}`, quantity, revenue, expenses: 0, orders: invoices.size };
+    return { label: `ThÃƒÂ¡ng ${index + 1}`, quantity, revenue, expenses: 0, orders: invoices.size };
   });
   const totalRevenue = rows.reduce((sum, row) => sum + toNumber(row.amount ?? row.total ?? row.base_amount), 0);
   const totalQuantity = rows.reduce((sum, row) => sum + toNumber(row.qty ?? row.invoiced_qty ?? row.stock_qty), 0);
@@ -975,11 +974,11 @@ export async function getErpWarehouseReport(warehouse: string, itemGroup: string
           costCenter,
         );
         financialDataAvailable = true;
-        warningMessage = itemWiseWarning ?? 'P&L report ERP không khả dụng; KPI đã được tính từ GL Entry theo cost center.';
+        warningMessage = itemWiseWarning ?? 'P&L report ERP khÃƒÂ´ng khÃ¡ÂºÂ£ dÃ¡Â»Â¥ng; KPI Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃƒÂ­nh tÃ¡Â»Â« GL Entry theo cost center.';
       } catch {
         selectedPnl = { income: 0, expenses: 0, profit: 0 };
         financialDataAvailable = false;
-        warningMessage = itemWiseWarning ?? 'Chưa lấy được dữ liệu live P&L ERP cho chi nhánh đã chọn; không hiển thị số liệu giả.';
+        warningMessage = itemWiseWarning ?? 'ChÃ†Â°a lÃ¡ÂºÂ¥y Ã„â€˜Ã†Â°Ã¡Â»Â£c dÃ¡Â»Â¯ liÃ¡Â»â€¡u live P&L ERP cho chi nhÃƒÂ¡nh Ã„â€˜ÃƒÂ£ chÃ¡Â»Ân; khÃƒÂ´ng hiÃ¡Â»Æ’n thÃ¡Â»â€¹ sÃ¡Â»â€˜ liÃ¡Â»â€¡u giÃ¡ÂºÂ£.';
       }
     }
   }
@@ -989,7 +988,7 @@ export async function getErpWarehouseReport(warehouse: string, itemGroup: string
   }
 
   if (!rows.length && costCenter) {
-    const liveRevenueWarning = 'ERP chưa trả về dữ liệu live cho chi nhánh này trong khoảng thời gian đã chọn; số liệu đang rỗng vì nguồn dữ liệu chưa đồng bộ.';
+    const liveRevenueWarning = 'ERP chÃ†Â°a trÃ¡ÂºÂ£ vÃ¡Â»Â dÃ¡Â»Â¯ liÃ¡Â»â€¡u live cho chi nhÃƒÂ¡nh nÃƒÂ y trong khoÃ¡ÂºÂ£ng thÃ¡Â»Âi gian Ã„â€˜ÃƒÂ£ chÃ¡Â»Ân; sÃ¡Â»â€˜ liÃ¡Â»â€¡u Ã„â€˜ang rÃ¡Â»â€”ng vÃƒÂ¬ nguÃ¡Â»â€œn dÃ¡Â»Â¯ liÃ¡Â»â€¡u chÃ†Â°a Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢.';
     warningMessage = warningMessage ? `${warningMessage} ${liveRevenueWarning}` : liveRevenueWarning;
   }
 
@@ -1138,11 +1137,11 @@ export async function getErpFashionPipelineData(fromDate?: string, toDate?: stri
   }
 
   const stages = [
-    { status: 'Draft', name: 'Mới' },
-    { status: 'To Deliver', name: 'Chờ giao hàng' },
-    { status: 'To Bill', name: 'Chờ lập hóa đơn' },
-    { status: 'Completed', name: 'Thành công' },
-    { status: 'Cancelled', name: 'Đã hủy' },
+    { status: 'Draft', name: 'MÃ¡Â»â€ºi' },
+    { status: 'To Deliver', name: 'ChÃ¡Â»Â giao hÃƒÂ ng' },
+    { status: 'To Bill', name: 'ChÃ¡Â»Â lÃ¡ÂºÂ­p hÃƒÂ³a Ã„â€˜Ã†Â¡n' },
+    { status: 'Completed', name: 'ThÃƒÂ nh cÃƒÂ´ng' },
+    { status: 'Cancelled', name: 'Ã„ÂÃƒÂ£ hÃ¡Â»Â§y' },
   ];
 
   return stages.map(({ status, name }) => ({
@@ -1161,7 +1160,7 @@ export async function getErpFashionMonthlyComparison(year: number) {
     const toDate = `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
     return getErpItemWiseSalesRows(fromDate, toDate, {
       warehouse: FASHION_QUAN_4_WAREHOUSE,
-      item_group: 'Thành phẩm',
+      item_group: 'ThÃƒÂ nh phÃ¡ÂºÂ©m',
     });
   }));
 
@@ -1173,7 +1172,7 @@ export async function getErpFashionMonthlyComparison(year: number) {
     const orderNumbers = new Set(fashionRows.map((row) => String(row.voucher_no ?? row.sales_invoice ?? row.invoice ?? row.parent ?? '')).filter(Boolean));
     const previousOrderNumbers = new Set(previousRows.map((row) => String(row.voucher_no ?? row.sales_invoice ?? row.invoice ?? row.parent ?? '')).filter(Boolean));
     return {
-      label: `Tháng ${index + 1}`,
+      label: `ThÃƒÂ¡ng ${index + 1}`,
       total: orderNumbers.size,
       quantity,
       delta: orderNumbers.size - previousOrderNumbers.size,
@@ -1230,11 +1229,11 @@ export async function getErpFabricProgress(fromDate: string, toDate: string, war
   }
 
   const stages = [
-    { name: 'Đơn vải mới', statuses: ['Draft'] },
-    { name: 'Đang chuẩn bị vải', statuses: ['To Deliver'] },
-    { name: 'Chờ xuất hóa đơn', statuses: ['To Bill'] },
-    { name: 'Đã hoàn tất', statuses: ['Completed'] },
-    { name: 'Đã hủy', statuses: ['Cancelled'] },
+    { name: 'Ã„ÂÃ†Â¡n vÃ¡ÂºÂ£i mÃ¡Â»â€ºi', statuses: ['Draft'] },
+    { name: 'Ã„Âang chuÃ¡ÂºÂ©n bÃ¡Â»â€¹ vÃ¡ÂºÂ£i', statuses: ['To Deliver'] },
+    { name: 'ChÃ¡Â»Â xuÃ¡ÂºÂ¥t hÃƒÂ³a Ã„â€˜Ã†Â¡n', statuses: ['To Bill'] },
+    { name: 'Ã„ÂÃƒÂ£ hoÃƒÂ n tÃ¡ÂºÂ¥t', statuses: ['Completed'] },
+    { name: 'Ã„ÂÃƒÂ£ hÃ¡Â»Â§y', statuses: ['Cancelled'] },
   ];
   const maxValue = Math.max(...stages.map((stage) => stage.statuses.reduce((sum, status) => sum + (statusCounts.get(status)?.size ?? 0), 0)), 1);
 
@@ -1258,7 +1257,7 @@ export async function getErpFabricMonthlyComparison(year: number, warehouse = FA
     const toDate = `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
     return getErpItemWiseSalesRows(fromDate, toDate, {
       warehouse,
-      item_group: 'Vải',
+      item_group: 'VÃ¡ÂºÂ£i',
     });
   }));
 
@@ -1275,7 +1274,7 @@ export async function getErpFabricMonthlyComparison(year: number, warehouse = FA
     const orderNumbers = new Set(meterRows.map((row) => String(row.voucher_no ?? row.sales_invoice ?? row.invoice ?? row.parent ?? '')).filter(Boolean));
     const previousOrderNumbers = new Set(previousMeterRows.map((row) => String(row.voucher_no ?? row.sales_invoice ?? row.invoice ?? row.parent ?? '')).filter(Boolean));
     return {
-      label: `Tháng ${index + 1}`,
+      label: `ThÃƒÂ¡ng ${index + 1}`,
       total: orderNumbers.size,
       delta: orderNumbers.size - previousOrderNumbers.size,
       meters,
@@ -1448,7 +1447,7 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
     return {
       sku,
       name: String(item.item_name ?? item.name ?? sku),
-      category: String(item.item_group ?? 'Chưa phân loại'),
+      category: String(item.item_group ?? 'ChÃ†Â°a phÃƒÂ¢n loÃ¡ÂºÂ¡i'),
       unitPrice: toNumber(item.standard_rate),
       soldQuantity: sales.quantity,
       orderCount: reportOrderCount || invoiceOrderCount || orderOrderCount,
@@ -1460,7 +1459,7 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
 }
 
 function formatChange(current: number, previous: number) {
-  if (!previous) return 'Mới';
+  if (!previous) return 'MÃ¡Â»â€ºi';
   const change = ((current - previous) / previous) * 100;
   return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
 }
@@ -1550,13 +1549,13 @@ async function getFrappeResourceSummary(): Promise<ErpDashboardPayload | null> {
   const aiPlan = latestMonth
     ? [
         monthlyRevenueChange < 0
-          ? `Doanh thu tháng ${latestMonth.label} đang giảm ${Math.abs(monthlyRevenueChange).toFixed(1)}% so với tháng trước; nên rà soát kênh bán và tập trung ngân sách vào nhóm có tỷ suất lợi nhuận cao.`
-          : `Doanh thu tháng ${latestMonth.label} đang tăng ${monthlyRevenueChange.toFixed(1)}%; nên duy trì nhóm sản phẩm hiệu quả và chuẩn bị tồn kho cho tháng tiếp theo.`,
+          ? `Doanh thu thÃƒÂ¡ng ${latestMonth.label} Ã„â€˜ang giÃ¡ÂºÂ£m ${Math.abs(monthlyRevenueChange).toFixed(1)}% so vÃ¡Â»â€ºi thÃƒÂ¡ng trÃ†Â°Ã¡Â»â€ºc; nÃƒÂªn rÃƒÂ  soÃƒÂ¡t kÃƒÂªnh bÃƒÂ¡n vÃƒÂ  tÃ¡ÂºÂ­p trung ngÃƒÂ¢n sÃƒÂ¡ch vÃƒÂ o nhÃƒÂ³m cÃƒÂ³ tÃ¡Â»Â· suÃ¡ÂºÂ¥t lÃ¡Â»Â£i nhuÃ¡ÂºÂ­n cao.`
+          : `Doanh thu thÃƒÂ¡ng ${latestMonth.label} Ã„â€˜ang tÃ„Æ’ng ${monthlyRevenueChange.toFixed(1)}%; nÃƒÂªn duy trÃƒÂ¬ nhÃƒÂ³m sÃ¡ÂºÂ£n phÃ¡ÂºÂ©m hiÃ¡Â»â€¡u quÃ¡ÂºÂ£ vÃƒÂ  chuÃ¡ÂºÂ©n bÃ¡Â»â€¹ tÃ¡Â»â€œn kho cho thÃƒÂ¡ng tiÃ¡ÂºÂ¿p theo.`,
         latestMonth.profit < 0
-          ? 'Lợi nhuận tháng gần nhất đang âm; cần kiểm tra ngay giá vốn, chi phí bán hàng và các khoản giảm trừ doanh thu.'
-          : `Biên lợi nhuận tháng gần nhất là ${((latestMonth.profit / Math.max(latestMonth.revenue, 1)) * 100).toFixed(1)}%; nên ưu tiên các đơn hàng giữ được biên này trở lên.`,
+          ? 'LÃ¡Â»Â£i nhuÃ¡ÂºÂ­n thÃƒÂ¡ng gÃ¡ÂºÂ§n nhÃ¡ÂºÂ¥t Ã„â€˜ang ÃƒÂ¢m; cÃ¡ÂºÂ§n kiÃ¡Â»Æ’m tra ngay giÃƒÂ¡ vÃ¡Â»â€˜n, chi phÃƒÂ­ bÃƒÂ¡n hÃƒÂ ng vÃƒÂ  cÃƒÂ¡c khoÃ¡ÂºÂ£n giÃ¡ÂºÂ£m trÃ¡Â»Â« doanh thu.'
+          : `BiÃƒÂªn lÃ¡Â»Â£i nhuÃ¡ÂºÂ­n thÃƒÂ¡ng gÃ¡ÂºÂ§n nhÃ¡ÂºÂ¥t lÃƒÂ  ${((latestMonth.profit / Math.max(latestMonth.revenue, 1)) * 100).toFixed(1)}%; nÃƒÂªn Ã†Â°u tiÃƒÂªn cÃƒÂ¡c Ã„â€˜Ã†Â¡n hÃƒÂ ng giÃ¡Â»Â¯ Ã„â€˜Ã†Â°Ã¡Â»Â£c biÃƒÂªn nÃƒÂ y trÃ¡Â»Å¸ lÃƒÂªn.`,
       ]
-    : ['Chưa đủ dữ liệu tháng để đưa ra định hướng; cần kiểm tra lại báo cáo kết quả kinh doanh trong ERP.'];
+    : ['ChÃ†Â°a Ã„â€˜Ã¡Â»Â§ dÃ¡Â»Â¯ liÃ¡Â»â€¡u thÃƒÂ¡ng Ã„â€˜Ã¡Â»Æ’ Ã„â€˜Ã†Â°a ra Ã„â€˜Ã¡Â»â€¹nh hÃ†Â°Ã¡Â»â€ºng; cÃ¡ÂºÂ§n kiÃ¡Â»Æ’m tra lÃ¡ÂºÂ¡i bÃƒÂ¡o cÃƒÂ¡o kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£ kinh doanh trong ERP.'];
 
   return {
     modules: dashboardData.modules,
@@ -1564,17 +1563,17 @@ async function getFrappeResourceSummary(): Promise<ErpDashboardPayload | null> {
     monthlyOrderComparison,
     aiPlan,
     metrics: [
-      { label: `Doanh thu lũy kế ${currentYear}`, value: formatVnd(revenue), change: `${revenueChange >= 0 ? '+' : ''}${revenueChange.toFixed(1)}%`, tone: revenueChange >= 0 ? 'up' : 'down' },
-      { label: `Lợi nhuận lũy kế ${currentYear}`, value: formatVnd(profit), change: `${profitChange >= 0 ? '+' : ''}${profitChange.toFixed(1)}%`, tone: profitChange >= 0 ? 'up' : 'down' },
-      { label: 'Khách hàng', value: String(customerCount), change: formatChange(customerCount, previousCustomerCount), tone: customerCount >= previousCustomerCount ? 'up' : 'down' },
-      { label: 'Mặt hàng', value: String(itemCount), change: formatChange(itemCount, previousItemCount), tone: itemCount >= previousItemCount ? 'up' : 'down' },
+      { label: `Doanh thu lÃ…Â©y kÃ¡ÂºÂ¿ ${currentYear}`, value: formatVnd(revenue), change: `${revenueChange >= 0 ? '+' : ''}${revenueChange.toFixed(1)}%`, tone: revenueChange >= 0 ? 'up' : 'down' },
+      { label: `LÃ¡Â»Â£i nhuÃ¡ÂºÂ­n lÃ…Â©y kÃ¡ÂºÂ¿ ${currentYear}`, value: formatVnd(profit), change: `${profitChange >= 0 ? '+' : ''}${profitChange.toFixed(1)}%`, tone: profitChange >= 0 ? 'up' : 'down' },
+      { label: 'KhÃƒÂ¡ch hÃƒÂ ng', value: String(customerCount), change: formatChange(customerCount, previousCustomerCount), tone: customerCount >= previousCustomerCount ? 'up' : 'down' },
+      { label: 'MÃ¡ÂºÂ·t hÃƒÂ ng', value: String(itemCount), change: formatChange(itemCount, previousItemCount), tone: itemCount >= previousItemCount ? 'up' : 'down' },
     ],
     revenueBars: dashboardData.revenueBars,
     aiMessages: [
-      `Đã đồng bộ ${customerCount} khách hàng từ ERP GUSAZ Desk.`,
-      `Doanh thu theo báo cáo kết quả kinh doanh đang ở mức ${formatVnd(revenue)}.` ,
-      `Lợi nhuận sau chi phí theo ERP là ${formatVnd(profit)}.` ,
-      `Số lượng sản phẩm đang đồng bộ là ${itemCount}; nên kiểm tra tồn kho trong 48 giờ tới.`,
+      `Ã„ÂÃƒÂ£ Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢ ${customerCount} khÃƒÂ¡ch hÃƒÂ ng tÃ¡Â»Â« ERP GUSAZ Desk.`,
+      `Doanh thu theo bÃƒÂ¡o cÃƒÂ¡o kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£ kinh doanh Ã„â€˜ang Ã¡Â»Å¸ mÃ¡Â»Â©c ${formatVnd(revenue)}.` ,
+      `LÃ¡Â»Â£i nhuÃ¡ÂºÂ­n sau chi phÃƒÂ­ theo ERP lÃƒÂ  ${formatVnd(profit)}.` ,
+      `SÃ¡Â»â€˜ lÃ†Â°Ã¡Â»Â£ng sÃ¡ÂºÂ£n phÃ¡ÂºÂ©m Ã„â€˜ang Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢ lÃƒÂ  ${itemCount}; nÃƒÂªn kiÃ¡Â»Æ’m tra tÃ¡Â»â€œn kho trong 48 giÃ¡Â»Â tÃ¡Â»â€ºi.`,
     ],
     pipeline: pipelineCounts,
   };
