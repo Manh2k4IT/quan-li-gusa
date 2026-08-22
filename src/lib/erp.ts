@@ -68,7 +68,84 @@ function cleanEnvValue(value: string | undefined) {
   return (value ?? '').trim().replace(/^(['"])(.*)\1$/, '$2');
 }
 
-const erpSessionCookieCache = { value: cleanEnvValue(process.env.ERP_COOKIE || process.env.ERP_SESSION_COOKIE) };
+const ERP_COMPANY_ALIASES = [
+  'CONG TY TNHH GUSA VIET NAM',
+  'Công ty TNHH GUSA Việt Nam',
+  'Cong ty TNHH GUSA Viet Nam',
+  'GUSA VIET NAM',
+  'GUSA Viet Nam',
+  'CÔNG TY TNHH GUSA VIỆT NAM',
+  'CTTNHH GUSA VIET NAM',
+];
+
+function normalizeErpCompanyName(value: unknown) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+const erpCompanyCache = { value: '', expiresAt: 0 };
+
+async function getErpCompanyName() {
+  const configured = cleanEnvValue(process.env.ERP_COMPANY);
+  const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
+
+  if (erpCompanyCache.value && erpCompanyCache.expiresAt > Date.now()) {
+    return erpCompanyCache.value;
+  }
+
+  const candidates = new Set<string>([configured, ...ERP_COMPANY_ALIASES].filter(Boolean));
+
+  try {
+    const response = await fetch(`${baseUrl}/api/method/frappe.client.get_list`, {
+      method: 'POST',
+      headers: { ...getErpHeaders(), 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        doctype: 'Company',
+        fields: JSON.stringify(['name']),
+        limit_page_length: '50',
+      }).toString(),
+      cache: 'no-store',
+    });
+
+    if (response.ok) {
+      const payload = (await response.json()) as { message?: Array<{ name?: string }> };
+      const names = (payload.message ?? []).map((item) => String(item.name ?? '')).filter(Boolean);
+
+      const match = names.find((name) => {
+        const normalized = normalizeErpCompanyName(name);
+        return [...candidates].some((candidate) => normalizeErpCompanyName(candidate) === normalized || normalized.includes(normalizeErpCompanyName(candidate)) || normalizeErpCompanyName(candidate).includes(normalized));
+      });
+
+      if (match) {
+        erpCompanyCache.value = match;
+        erpCompanyCache.expiresAt = Date.now() + 10 * 60 * 1000;
+        return match;
+      }
+
+      const fallback = names.find((name) => /gusa/i.test(name)) ?? names[0] ?? configured ?? ERP_COMPANY_ALIASES[0];
+      if (fallback) {
+        erpCompanyCache.value = fallback;
+        erpCompanyCache.expiresAt = Date.now() + 10 * 60 * 1000;
+        return fallback;
+      }
+    }
+  } catch {
+    // fall through to configured value
+  }
+
+  const fallbackCompany = configured || ERP_COMPANY_ALIASES[0];
+  erpCompanyCache.value = fallbackCompany;
+  erpCompanyCache.expiresAt = Date.now() + 10 * 60 * 1000;
+  return fallbackCompany;
+}
+
+const erpSessionCookieCache = {
+  value: cleanEnvValue(process.env.ERP_COOKIE || process.env.ERP_SESSION_COOKIE),
+  expiresAt: Date.now() + 30 * 60 * 1000,
+};
 
 function parseCookieHeader(raw: string | null) {
   if (!raw) return '';
@@ -174,6 +251,23 @@ function getErpHeaders() {
   return headers;
 }
 
+async function fetchWithErpRetry(input: RequestInfo | URL, init: RequestInit = {}) {
+  const response = await fetch(input, init);
+  if ((response.status === 401 || response.status === 403) && (process.env.ERP_API_KEY || process.env.ERP_USERNAME) && (process.env.ERP_API_SECRET || process.env.ERP_PASSWORD)) {
+    const refreshed = await ensureErpSessionCookie();
+    if (refreshed) {
+      return fetch(input, {
+        ...init,
+        headers: {
+          ...(init.headers ?? {}),
+          ...getErpHeaders(),
+        },
+      });
+    }
+  }
+  return response;
+}
+
 export function getErpConfig() {
   const apiUrl = cleanEnvValue(process.env.ERP_API_URL || process.env.ERP_BASE_URL) || 'https://gusaz.com';
   const apiKey = cleanEnvValue(process.env.ERP_API_KEY || process.env.ERP_USERNAME);
@@ -216,8 +310,12 @@ export async function checkErpConnection() {
 
   const hasSession = Boolean(cookie && csrfToken) || Boolean(apiKey && apiSecret);
 
+  if (apiKey && apiSecret) {
+    await ensureErpSessionCookie();
+  }
+
   try {
-    const response = await fetch(`${apiUrl.replace(/\/$/, '')}/api/method/frappe.auth.get_logged_user`, {
+    const response = await fetchWithErpRetry(`${apiUrl.replace(/\/$/, '')}/api/method/frappe.auth.get_logged_user`, {
       headers: getErpHeaders(),
       cache: 'no-store',
     });
@@ -307,8 +405,9 @@ function normalizeAiMessages(payload: ErpDashboardPayload | null | undefined): s
 
 async function getProfitAndLossSummary(baseUrl: string, periodicity: 'Yearly' | 'Monthly' = 'Yearly', reportYear = new Date().getFullYear()) {
   const year = reportYear;
+  const company = await getErpCompanyName();
   const filters = {
-    company: process.env.ERP_COMPANY || 'CONG TY TNHH GUSA VIET NAM',
+    company,
     from_fiscal_year: String(year),
     to_fiscal_year: String(year),
     from_date: `${year}-01-01`,
@@ -619,13 +718,14 @@ async function getErpSalesInvoiceFallback(fromDate: string, toDate: string, ware
 
 async function getErpItemWiseSalesRows(fromDate: string, toDate: string, extraFilters: Record<string, string> = {}) {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
+  const company = await getErpCompanyName();
   const response = await fetch(`${baseUrl}/api/method/frappe.desk.query_report.run`, {
     method: 'POST',
     headers: { ...getErpHeaders(), 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       report_name: 'Item-wise Sales Register',
       filters: JSON.stringify({
-        company: process.env.ERP_COMPANY || 'CONG TY TNHH GUSA VIET NAM',
+        company,
         from_date: fromDate,
         to_date: toDate,
         ...extraFilters,
@@ -659,8 +759,9 @@ async function getErpItemWiseSalesRows(fromDate: string, toDate: string, extraFi
 async function getErpProfitLossForPeriod(fromDate: string, toDate: string, costCenter: string) {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
   const costCenterAliases = getCostCenterCandidates(costCenter);
+  const company = await getErpCompanyName();
   const filters: Record<string, unknown> = {
-    company: process.env.ERP_COMPANY || 'CONG TY TNHH GUSA VIET NAM',
+    company,
     period_start_date: fromDate,
     period_end_date: toDate,
     cost_center: costCenterAliases.length > 1 ? costCenterAliases : [costCenter],
@@ -755,10 +856,11 @@ async function getErpSalesInvoiceMonthlyRows(fromDate: string, toDate: string, c
 async function getErpProfitLossFromGlEntries(fromDate: string, toDate: string, costCenter: string) {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
   const costCenterAliases = getCostCenterCandidates(costCenter);
+  const company = await getErpCompanyName();
   const fields = encodeURIComponent(JSON.stringify(['account', 'debit', 'credit', 'cost_center']));
   const filters = encodeURIComponent(JSON.stringify([
     ['GL Entry', 'posting_date', 'between', [fromDate, toDate]],
-    ['GL Entry', 'company', '=', process.env.ERP_COMPANY || 'CONG TY TNHH GUSA VIET NAM'],
+    ['GL Entry', 'company', '=', company],
     ['GL Entry', 'is_cancelled', '=', 0],
   ]));
   const response = await fetch(`${baseUrl}/api/resource/GL%20Entry?fields=${fields}&filters=${filters}&limit_page_length=100000`, {
@@ -1214,6 +1316,7 @@ export type ErpProductAnalysisRow = {
 export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
   const fields = (value: string[]) => encodeURIComponent(JSON.stringify(value));
+  const company = await getErpCompanyName();
 
   const [itemsResponse, binsResponse, invoiceItemsResponse] = await Promise.all([
     fetch(`${baseUrl}/api/resource/Item?fields=${fields(['name', 'item_code', 'item_name', 'item_group', 'standard_rate'])}&limit_page_length=100`, {
@@ -1308,7 +1411,7 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
       body: new URLSearchParams({
         report_name: 'Item-wise Sales Register',
         filters: JSON.stringify({
-          company: process.env.ERP_COMPANY || 'CONG TY TNHH GUSA VIET NAM',
+          company,
           from_date: '2020-01-01',
           to_date: new Date().toISOString().slice(0, 10),
         }),
