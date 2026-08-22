@@ -49,6 +49,7 @@ export default function DailySalesReportTable({ category }: { category: Category
   const [targetCategory, setTargetCategory] = useState<Category>(category);
   const [targetAmount, setTargetAmount] = useState('');
   const [savedTarget, setSavedTarget] = useState(false);
+  const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadTarget = async () => {
@@ -169,6 +170,29 @@ export default function DailySalesReportTable({ category }: { category: Category
       .catch(() => setSavedTarget(false));
   };
 
+  const deleteReport = async (report: SalesReport) => {
+    if (!window.confirm(`Xóa báo cáo ${report.orderCode} của ${report.salesperson}?`)) return;
+
+    setDeletingReportId(report.id);
+    try {
+      const response = await fetch('/api/sales-reports', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: report.id }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({ message: 'Không thể xóa báo cáo.' }));
+        window.alert(payload.message ?? 'Không thể xóa báo cáo.');
+        return;
+      }
+
+      setReports((current) => current.filter((item) => item.id !== report.id));
+      window.dispatchEvent(new Event('gusa-sales-report-sync'));
+    } finally {
+      setDeletingReportId(null);
+    }
+  };
+
   return (
     <main className="page-layout">
       <div className="page-header">
@@ -219,7 +243,7 @@ export default function DailySalesReportTable({ category }: { category: Category
         {!visibleReports.length ? <p className="comparison-loading">Chưa có báo cáo Sale cho ngày và khu vực này.</p> : (
           <div className="sales-report-table-scroll" style={{ maxHeight: '620px', overflowY: visibleReports.length > 10 ? 'auto' : 'visible', overflowX: 'auto' }}>
             <table className="data-table">
-              <thead><tr><th>Ngày</th><th>Sale</th><th>Mã đơn</th><th>Sản phẩm</th><th>Doanh thu</th><th>Trạng thái đơn</th><th>Ghi chú</th></tr></thead>
+              <thead><tr><th>Ngày</th><th>Sale</th><th>Mã đơn</th><th>Sản phẩm</th><th>Doanh thu</th><th>Trạng thái đơn</th><th>Ghi chú</th><th aria-label="Xóa" /></tr></thead>
               <tbody>{visibleReports.map((report) => <tr key={report.id}>
                 <td>{report.date}</td>
                 <td><strong>{report.salesperson}</strong></td>
@@ -228,6 +252,7 @@ export default function DailySalesReportTable({ category }: { category: Category
                 <td><strong>{formatVnd(report.revenue)}</strong></td>
                 <td>{report.orderStatus}</td>
                 <td title={report.note} style={{ maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{report.note || 'Không có ghi chú'}</td>
+                <td><button type="button" onClick={() => deleteReport(report)} disabled={deletingReportId === report.id} aria-label={`Xóa báo cáo ${report.orderCode}`} title="Xóa báo cáo" style={{ width: '30px', height: '30px', border: '1px solid rgba(255, 125, 125, 0.35)', borderRadius: '50%', background: 'rgba(255, 90, 90, 0.12)', color: '#ff9f9f', fontSize: '1.2rem', lineHeight: 1, cursor: deletingReportId === report.id ? 'wait' : 'pointer' }}>×</button></td>
               </tr>)}</tbody>
             </table>
           </div>

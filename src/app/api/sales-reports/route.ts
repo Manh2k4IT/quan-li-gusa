@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 type SalesReportDelegate = {
   findMany: (args: { where?: Record<string, unknown>; orderBy?: Record<string, string> }) => Promise<unknown[]>;
   create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
+  delete: (args: { where: { id: string } }) => Promise<unknown>;
 };
 
 export async function GET() {
@@ -76,5 +77,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ report });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : 'Không thể lưu báo cáo.' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = getSession(await cookies());
+    if (!session || (session.role !== 'CEO' && session.role !== 'MANAGER')) {
+      return NextResponse.json({ message: 'Không có quyền xóa báo cáo.' }, { status: 403 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const reportId = String(body.id ?? '').trim();
+    if (!reportId) {
+      return NextResponse.json({ message: 'Thiếu mã báo cáo.' }, { status: 400 });
+    }
+
+    const reportDelegate = (prisma as typeof prisma & { salesReport?: Pick<SalesReportDelegate, 'delete'> }).salesReport;
+    if (reportDelegate?.delete) {
+      await reportDelegate.delete({ where: { id: reportId } });
+    } else {
+      await prisma.$executeRawUnsafe('DELETE FROM SalesReport WHERE id = ?', reportId);
+    }
+
+    return NextResponse.json({ ok: true, id: reportId });
+  } catch (error) {
+    return NextResponse.json({ message: error instanceof Error ? error.message : 'Không thể xóa báo cáo.' }, { status: 500 });
   }
 }
