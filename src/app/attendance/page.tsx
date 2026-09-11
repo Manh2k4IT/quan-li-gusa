@@ -101,6 +101,14 @@ function getDateRange(startDate: string, endDate: string) {
   return dates;
 }
 
+function getTodayDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 async function getAttendanceRows(): Promise<AttendanceSummary[]> {
   const response = await fetch(SHEET_CSV_URL, { cache: 'no-store' });
   if (!response.ok) throw new Error(`Google Sheets returned ${response.status}`);
@@ -137,6 +145,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
   let error = '';
   const filters = await searchParams;
   const filterMode = filters.mode === 'range' ? 'range' : 'date';
+  const selectedDate = filters.date ?? (!filters.mode ? getTodayDate() : undefined);
 
   try {
     rows = await getAttendanceRows();
@@ -155,7 +164,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
   const members = [...memberLabels.values()].sort((left, right) => left.localeCompare(right, 'vi'));
   const filteredRows = rows.filter((row) => {
     const matchesMember = !filters.member || normalizePersonName(row.name) === normalizePersonName(filters.member);
-    const matchesDate = filterMode !== 'date' || !filters.date || row.date === filters.date;
+    const matchesDate = filterMode !== 'date' || !selectedDate || row.date === selectedDate;
     const matchesFromDate = filterMode !== 'range' || !filters.from || row.date >= filters.from;
     const matchesToDate = filterMode !== 'range' || !filters.to || row.date <= filters.to;
     return matchesMember && matchesDate && matchesFromDate && matchesToDate;
@@ -175,7 +184,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     const rightKey = `${right.date} ${right.checkIn ?? right.checkOut ?? ''}`;
     return rightKey.localeCompare(leftKey);
   }).slice(0, 80);
-    const selectedStartDate = filterMode === 'date' ? filters.date : (filters.from ?? filters.to);
+    const selectedStartDate = filterMode === 'date' ? selectedDate : (filters.from ?? filters.to);
     const selectedEndDate = filterMode === 'date' ? filters.date : (filters.to ?? filters.from);
     const reportDates = selectedStartDate && selectedEndDate
       ? getDateRange(selectedStartDate <= selectedEndDate ? selectedStartDate : selectedEndDate, selectedStartDate <= selectedEndDate ? selectedEndDate : selectedStartDate)
@@ -258,7 +267,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
             members={members}
             mode={filterMode}
             member={filters.member}
-            date={filters.date}
+            date={selectedDate}
             from={filters.from}
             to={filters.to}
           />
