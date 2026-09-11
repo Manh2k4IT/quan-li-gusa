@@ -188,7 +188,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     if (getNameDisplayScore(row.name) > getNameDisplayScore(current.name)) current.name = row.name;
 
     if (row.action === 'Check-in' && (!current.checkIn || row.time < current.checkIn)) current.checkIn = row.time;
-    if (row.action === 'Check-out' && getMinutes(row.time) >= (17 * 60)
+    if (row.action === 'Check-out'
       && (!current.checkOut || row.time > current.checkOut)) current.checkOut = row.time;
     pairs.set(key, current);
     return pairs;
