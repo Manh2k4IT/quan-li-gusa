@@ -9,6 +9,7 @@ export default function SalesLayout({ children }: { children: React.ReactNode })
   const [sessionUser, setSessionUser] = useState<{ name?: string; email?: string } | null>(null);
   const isSalesReports = pathname.startsWith('/sales-reports');
   const isSalesPlan = pathname.startsWith('/sales-plan');
+  const isCustomerAnalysis = pathname.startsWith('/customer-analysis');
 
   useEffect(() => {
     fetch('/api/session')
@@ -47,6 +48,11 @@ export default function SalesLayout({ children }: { children: React.ReactNode })
           <Link href="/sales-plan" className={`nav-item ${isSalesPlan ? 'active' : ''}`}>
             <span>▤</span>
             Báo cáo kế hoạch
+          </Link>
+
+          <Link href="/customer-analysis" className={`nav-item ${isCustomerAnalysis ? 'active' : ''}`}>
+            <span>◌</span>
+            Phân tích khách hàng
           </Link>
 
         </nav>

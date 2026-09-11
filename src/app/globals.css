@@ -1407,6 +1407,134 @@ button {
   padding: 28px;
 }
 
+.sales-analysis-page {
+  width: 100%;
+  max-width: 1480px;
+}
+
+.sales-analysis-page .page-header {
+  padding-bottom: 22px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.sales-analysis-page h2 {
+  margin: 6px 0 0;
+  font-size: clamp(2rem, 3vw, 3rem);
+}
+
+.customer-segment-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.customer-segment-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.04);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.customer-segment-card:hover,
+.customer-segment-card.active {
+  border-color: rgba(125, 211, 252, 0.58);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.customer-segment-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.customer-segment-card strong {
+  font-size: 1.8rem;
+}
+
+.customer-table-panel,
+.customer-ai-panel {
+  margin-bottom: 18px;
+}
+
+.customer-analysis-table-wrap {
+  max-height: 520px;
+  overflow: auto;
+}
+
+.customer-analysis-table-wrap .data-table {
+  min-width: 900px;
+}
+
+.customer-analysis-table-wrap .data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #0d192d;
+}
+
+.customer-muted {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.customer-segment-badge {
+  display: inline-flex;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(125, 211, 252, 0.1);
+  color: #bae6fd;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.customer-ai-panel textarea {
+  width: 100%;
+  min-height: 100px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(7, 15, 29, 0.72);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.customer-ai-button {
+  margin-bottom: 16px;
+}
+
+.customer-ai-reply {
+  white-space: pre-wrap;
+  padding: 16px;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.06);
+  color: var(--text);
+  line-height: 1.7;
+}
+
+@media (max-width: 1000px) {
+  .customer-segment-grid {
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .customer-segment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .sales-report-page .page-header {
   padding-bottom: 22px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.14);
