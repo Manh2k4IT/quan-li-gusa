@@ -1,5 +1,8 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import AttendanceFilters from '@/components/attendance-filters';
+import { getSession } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -150,6 +153,10 @@ type AttendancePageProps = {
 };
 
 export default async function AttendancePage({ searchParams }: AttendancePageProps) {
+  const session = getSession(await cookies());
+  if (!session) redirect('/login');
+  if (session.role !== 'CEO' && session.role !== 'MANAGER') redirect('/');
+
   let rows: AttendanceSummary[] = [];
   let error = '';
   const filters = await searchParams;

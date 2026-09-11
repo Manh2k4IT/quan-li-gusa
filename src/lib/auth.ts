@@ -77,6 +77,7 @@ export function canAccessModule(role: Role, module: string) {
     'ai-brain': ['CEO', 'MANAGER'],
     'ai-chat': ['CEO', 'MANAGER'],
     'ai-workflow': ['CEO', 'MANAGER'],
+    attendance: ['CEO', 'MANAGER'],
     'sales-reports': ['CEO', 'MANAGER', 'SALE'],
     'sales-plan': ['CEO', 'MANAGER', 'SALE'],
   };
