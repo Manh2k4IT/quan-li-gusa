@@ -109,6 +109,15 @@ function getTodayDate() {
   return `${year}-${month}-${day}`;
 }
 
+function getActiveMemberCutoff() {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const year = cutoff.getFullYear();
+  const month = String(cutoff.getMonth() + 1).padStart(2, '0');
+  const day = String(cutoff.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 async function getAttendanceRows(): Promise<AttendanceSummary[]> {
   const response = await fetch(SHEET_CSV_URL, { cache: 'no-store' });
   if (!response.ok) throw new Error(`Google Sheets returned ${response.status}`);
@@ -153,8 +162,12 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     error = 'Không thể tải dữ liệu từ Google Sheets lúc này.';
   }
 
+  const activeMemberKeys = new Set(rows
+    .filter((row) => row.date >= getActiveMemberCutoff())
+    .map((row) => normalizePersonName(row.name)));
+  const activeRows = rows.filter((row) => activeMemberKeys.has(normalizePersonName(row.name)));
   const memberLabels = new Map<string, string>();
-  rows.forEach((row) => {
+  activeRows.forEach((row) => {
     const key = normalizePersonName(row.name);
     const currentLabel = memberLabels.get(key);
     if (!currentLabel || getNameDisplayScore(row.name) > getNameDisplayScore(currentLabel)) {
@@ -162,7 +175,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     }
   });
   const members = [...memberLabels.values()].sort((left, right) => left.localeCompare(right, 'vi'));
-  const filteredRows = rows.filter((row) => {
+  const filteredRows = activeRows.filter((row) => {
     const matchesMember = !filters.member || normalizePersonName(row.name) === normalizePersonName(filters.member);
     const matchesDate = filterMode !== 'date' || !selectedDate || row.date === selectedDate;
     const matchesFromDate = filterMode !== 'range' || !filters.from || row.date >= filters.from;
@@ -190,7 +203,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
       ? getDateRange(selectedStartDate <= selectedEndDate ? selectedStartDate : selectedEndDate, selectedStartDate <= selectedEndDate ? selectedEndDate : selectedStartDate)
       : [...new Set(filteredRows.map((row) => row.date))].sort();
     const departmentsByMember = new Map<string, string>();
-    rows.forEach((row) => departmentsByMember.set(normalizePersonName(row.name), row.department));
+    activeRows.forEach((row) => departmentsByMember.set(normalizePersonName(row.name), row.department));
     const reportMemberKeys = filters.member
       ? [normalizePersonName(filters.member)]
       : [...memberLabels.keys()];
@@ -203,6 +216,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
         department,
       };
     }));
+    const completedAttendancePairs = attendancePairs.filter((row) => row.checkIn && row.checkOut);
   const checkIns = filteredRows.filter((row) => row.action === 'Check-in').length;
   const checkOuts = filteredRows.filter((row) => row.action === 'Check-out').length;
   const people = new Set(filteredRows.map((row) => normalizePersonName(row.name))).size;
@@ -247,8 +261,6 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     .map(([key, totalMinutes]) => ({ name: memberLabels.get(key) ?? key, totalMinutes }))
     .sort((left, right) => right.totalMinutes - left.totalMinutes);
   const maxLateMinutes = lateByMember[0]?.totalMinutes ?? 1;
-  const missingCheckIn = attendancePairs.filter((row) => !row.checkIn);
-  const missingCheckOut = attendancePairs.filter((row) => !row.checkOut);
 
   return (
     <main className="page-layout">
@@ -365,31 +377,6 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
             )}
           </section>
 
-          <section className="panel attendance-missing-panel">
-            <div className="panel-header">
-              <div><p className="eyebrow">ĐỐI SOÁT DỮ LIỆU</p><h3>Ai chưa check in / chưa check out</h3></div>
-              <span className="live-status">Theo bộ lọc hiện tại</span>
-            </div>
-            <div className="missing-attendance-grid">
-              <div className="missing-attendance-column">
-                <div className="missing-attendance-heading"><strong>Chưa check in</strong><span>{missingCheckIn.length} người</span></div>
-                {missingCheckIn.length === 0 ? <p className="empty-state">Không có dữ liệu.</p> : missingCheckIn.map((row, index) => (
-                  <div className="missing-attendance-row" key={`in-${row.date}-${row.name}-${index}`}>
-                    <span>{memberLabels.get(normalizePersonName(row.name)) ?? row.name}<small>{row.department}</small></span><strong>{row.date}</strong>
-                  </div>
-                ))}
-              </div>
-              <div className="missing-attendance-column">
-                <div className="missing-attendance-heading"><strong>Chưa check out</strong><span>{missingCheckOut.length} người</span></div>
-                {missingCheckOut.length === 0 ? <p className="empty-state">Không có dữ liệu.</p> : missingCheckOut.map((row, index) => (
-                  <div className="missing-attendance-row" key={`out-${row.date}-${row.name}-${index}`}>
-                    <span>{memberLabels.get(normalizePersonName(row.name)) ?? row.name}<small>{row.department}</small></span><strong>{row.date}</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
           <div className="stats-row">
             <div className="metric-card"><span>Tổng lượt check-in</span><strong>{checkIns}</strong></div>
             <div className="metric-card"><span>Tổng lượt check-out</span><strong>{checkOuts}</strong></div>
@@ -406,7 +393,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
               <table className="data-table">
                 <thead><tr><th>Ngày</th><th>Họ và tên</th><th>Bộ phận</th><th className="attendance-check-in-column">Check-in</th><th className="attendance-check-out-column">Check-out</th></tr></thead>
                 <tbody>
-                  {attendancePairs.map((row, index) => (
+                  {completedAttendancePairs.map((row, index) => (
                     <tr key={`${row.date}-${row.name}-${row.department}-${index}`}>
                       <td>{row.date}</td>
                       <td>{row.name}</td>
