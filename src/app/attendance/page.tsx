@@ -196,7 +196,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     const leftKey = `${left.date} ${left.checkIn ?? left.checkOut ?? ''}`;
     const rightKey = `${right.date} ${right.checkIn ?? right.checkOut ?? ''}`;
     return rightKey.localeCompare(leftKey);
-  }).slice(0, 80);
+  });
     const selectedStartDate = filterMode === 'date' ? selectedDate : (filters.from ?? filters.to);
     const selectedEndDate = filterMode === 'date' ? filters.date : (filters.to ?? filters.from);
     const reportDates = selectedStartDate && selectedEndDate
@@ -216,7 +216,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
         department,
       };
     }));
-    const completedAttendancePairs = attendancePairs.filter((row) => row.checkIn && row.checkOut);
+    const displayAttendancePairs = observedAttendancePairs;
   const checkIns = filteredRows.filter((row) => row.action === 'Check-in').length;
   const checkOuts = filteredRows.filter((row) => row.action === 'Check-out').length;
   const people = new Set(filteredRows.map((row) => normalizePersonName(row.name))).size;
@@ -393,7 +393,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
               <table className="data-table">
                 <thead><tr><th>Ngày</th><th>Họ và tên</th><th>Bộ phận</th><th className="attendance-check-in-column">Check-in</th><th className="attendance-check-out-column">Check-out</th></tr></thead>
                 <tbody>
-                  {completedAttendancePairs.map((row, index) => (
+                  {displayAttendancePairs.map((row, index) => (
                     <tr key={`${row.date}-${row.name}-${row.department}-${index}`}>
                       <td>{row.date}</td>
                       <td>{row.name}</td>
