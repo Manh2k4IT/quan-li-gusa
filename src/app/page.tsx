@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import DashboardOverview from '@/components/dashboard-overview';
 import PlanAssignmentSection from '@/components/plan-assignment-section';
+import SalesReportInbox from '@/components/sales-report-inbox';
 import WarehouseReport from '@/components/warehouse-report';
 import { getRoleLabel, getSession, getVisibleModules } from '@/lib/auth';
 import { getErpDashboardData } from '@/lib/erp';
@@ -95,6 +96,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ w
                 <Link href="/daily-reports/fabric-ben-thanh" className="nav-submenu-item">Báo cáo ngày kho Bến Thành</Link>
               </div>
             </details>
+            <details open className="nav-group">
+              <summary className="nav-item nav-item-card nav-summary">
+                <span>◷</span>
+                Báo cáo chấm công
+              </summary>
+              <div className="nav-submenu">
+                <Link href="/attendance" className="nav-submenu-item">Báo cáo check in / check out</Link>
+              </div>
+            </details>
           </div>
 
           <span className="nav-title mt-8">Sale</span>
@@ -132,6 +142,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ w
         ) : (
           <>
             <DashboardOverview erpData={erpData} />
+            <SalesReportInbox />
             <PlanAssignmentSection />
           </>
         )}
