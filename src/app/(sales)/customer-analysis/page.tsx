@@ -86,7 +86,11 @@ export default function CustomerAnalysisPage() {
   async function analyzeWithAi() {
     setAiLoading(true);
     try {
-      const compactCustomers = visibleCustomers.map(({ name, company, status, orderCount, totalSpent, lastOrderAt, daysSinceLastOrder, segment }) => ({ name, company, status, orderCount, totalSpent, lastOrderAt, daysSinceLastOrder, segment }));
+      const compactCustomers = visibleCustomers
+        .filter((customer) => customer.orderCount > 0 || customer.segment === 'Giảm mua / ngừng mua' || customer.segment === 'Khách tiềm năng')
+        .sort((first, second) => second.totalSpent - first.totalSpent)
+        .slice(0, 300)
+        .map(({ name, company, status, orderCount, totalSpent, lastOrderAt, daysSinceLastOrder, segment }) => ({ name, company, status, orderCount, totalSpent, lastOrderAt, daysSinceLastOrder, segment }));
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 30000);
       const response = await fetch('/api/customer-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: aiPrompt, customers: compactCustomers }), signal: controller.signal });
