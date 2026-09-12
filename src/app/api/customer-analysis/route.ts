@@ -128,10 +128,14 @@ async function getAnalysis() {
     orderBy: { updatedAt: 'desc' },
   });
   const erpCustomerNames = new Map<string, string>();
+  const erpCustomerCodes = new Map<string, string>();
   for (const erpCustomer of erpCustomers) {
     const erpCode = String(erpCustomer.name ?? '').trim().toLowerCase();
     const displayName = String(erpCustomer.customer_name ?? erpCustomer.name ?? '').trim().toLowerCase();
-    if (erpCode && displayName) erpCustomerNames.set(erpCode, displayName);
+    if (erpCode && displayName) {
+      erpCustomerNames.set(erpCode, displayName);
+      erpCustomerCodes.set(displayName, erpCode);
+    }
   }
 
   return customers.map((customer) => {
@@ -140,7 +144,7 @@ async function getAnalysis() {
     const matchingInvoices = erpInvoices.filter((invoice) => {
       const invoiceDisplayName = String(invoice.customer_name ?? '').trim().toLowerCase();
       const invoiceCode = String(invoice.customer ?? '').trim().toLowerCase();
-      return invoiceDisplayName === customerName || invoiceCode === customerName || erpCustomerNames.get(invoiceCode) === customerName;
+      return invoiceDisplayName === customerName || invoiceCode === customerName || erpCustomerNames.get(invoiceCode) === customerName || invoiceCode === erpCustomerCodes.get(customerName);
     });
     const erpTotal = matchingInvoices.reduce((sum, invoice) => sum + normalizeErpValue(invoice.grand_total), 0);
     const totalSpent = orders.reduce((sum, order) => sum + order.total, 0);

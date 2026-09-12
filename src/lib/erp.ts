@@ -302,17 +302,26 @@ export async function getErpSalesInvoices() {
 
   await ensureErpSessionCookie();
 
-  const response = await fetchWithErpRetry(`${baseUrl}/api/resource/Sales%20Invoice?fields=${encodeURIComponent(JSON.stringify(fields))}&filters=${encodeURIComponent(JSON.stringify([['docstatus', '=', 1]]))}&limit_page_length=5000`, {
-    headers: getErpHeaders(),
-    cache: 'no-store',
-  });
+  const invoices: Array<Record<string, unknown>> = [];
+  const pageSize = 5000;
 
-  if (!response.ok) {
-    throw new Error(`ERP sales invoice request failed: ${response.status} ${response.statusText}`);
+  for (let offset = 0; offset < 50000; offset += pageSize) {
+    const response = await fetchWithErpRetry(`${baseUrl}/api/resource/Sales%20Invoice?fields=${encodeURIComponent(JSON.stringify(fields))}&filters=${encodeURIComponent(JSON.stringify([['docstatus', '=', 1]]))}&limit_page_length=${pageSize}&limit_start=${offset}`, {
+      headers: getErpHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error(`ERP sales invoice request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const payload = (await response.json()) as { data?: Array<Record<string, unknown>> };
+    const page = Array.isArray(payload.data) ? payload.data : [];
+    invoices.push(...page);
+    if (page.length < pageSize) break;
   }
 
-  const payload = (await response.json()) as { data?: Array<Record<string, unknown>> };
-  return Array.isArray(payload.data) ? payload.data : [];
+  return invoices;
 }
 
 export function getErpConfig() {
