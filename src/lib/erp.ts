@@ -270,7 +270,7 @@ async function fetchWithErpRetry(input: RequestInfo | URL, init: RequestInit = {
 
 export async function getErpCustomers() {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
-  const fields = ['name', 'customer_name', 'customer_group', 'email_id', 'mobile_no', 'phone', 'customer_type', 'status', 'creation'];
+  const fields = ['name', 'customer_name', 'customer_group', 'email_id', 'mobile_no', 'customer_type', 'creation'];
 
   await ensureErpSessionCookie();
 
