@@ -22,6 +22,18 @@ function normalizeErpValue(value: unknown) {
 async function syncCustomersFromErp(orgId: string) {
   try {
     const records = await getErpCustomers();
+    const existingCustomers = await prisma.customer.findMany({
+      where: { orgId },
+      select: { id: true, name: true, email: true, phone: true, company: true, status: true, value: true },
+    });
+    const customerByKey = new Map<string, (typeof existingCustomers)[number]>();
+    for (const customer of existingCustomers) {
+      for (const key of [customer.email, customer.phone, customer.name]) {
+        if (key) customerByKey.set(key.trim().toLowerCase(), customer);
+      }
+    }
+
+    const operations: Array<ReturnType<typeof prisma.customer.update> | ReturnType<typeof prisma.customer.create>> = [];
     let synced = 0;
 
     for (const row of records) {
@@ -34,19 +46,12 @@ async function syncCustomersFromErp(orgId: string) {
       const status = String(row.status ?? row.customer_type ?? 'New').trim() || 'New';
       const value = normalizeErpValue(row.grand_total ?? row.total_amount ?? row.outstanding_amount ?? row.value ?? 0);
 
-      const existing = await prisma.customer.findFirst({
-        where: {
-          orgId,
-          OR: [
-            ...(email ? [{ email }] : []),
-            ...(phone ? [{ phone }] : []),
-            { name },
-          ],
-        },
-      });
+      const existing = [email, phone, name]
+        .map((key) => key ? customerByKey.get(key.toLowerCase()) : undefined)
+        .find(Boolean);
 
       if (existing) {
-        await prisma.customer.update({
+        operations.push(prisma.customer.update({
           where: { id: existing.id },
           data: {
             name,
@@ -56,9 +61,9 @@ async function syncCustomersFromErp(orgId: string) {
             status,
             value: existing.value || value,
           },
-        });
+        }));
       } else {
-        await prisma.customer.create({
+        operations.push(prisma.customer.create({
           data: {
             name,
             company,
@@ -68,9 +73,13 @@ async function syncCustomersFromErp(orgId: string) {
             value,
             orgId,
           },
-        });
+        }));
         synced += 1;
       }
+    }
+
+    for (let index = 0; index < operations.length; index += 25) {
+      await Promise.all(operations.slice(index, index + 25));
     }
 
     return synced;
