@@ -229,7 +229,15 @@ export default function CustomerAnalysisPage() {
             <div className="customer-ai-result-column">
               <span className="customer-ai-column-label">Kết quả trả lời</span>
               <div className={`customer-ai-reply ${!aiReply ? 'is-empty' : ''}`}>
-                {aiReply || 'Kết quả phân tích sẽ hiển thị ở đây.'}
+                {aiLoading ? (
+                  <div className="customer-ai-loading" role="status" aria-live="polite">
+                    <span className="customer-ai-spinner" aria-hidden="true" />
+                    <div>
+                      <strong>Đang phân tích dữ liệu khách hàng...</strong>
+                      <small>AI đang đọc các nhóm khách và lịch sử mua hàng.</small>
+                    </div>
+                  </div>
+                ) : aiReply ? aiReply : 'Kết quả phân tích sẽ hiển thị ở đây.'}
               </div>
             </div>
           </div>

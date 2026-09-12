@@ -1679,6 +1679,38 @@ button {
   color: var(--muted);
 }
 
+.customer-ai-loading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--text);
+}
+
+.customer-ai-loading strong,
+.customer-ai-loading small {
+  display: block;
+}
+
+.customer-ai-loading small {
+  margin-top: 5px;
+  color: var(--muted);
+}
+
+.customer-ai-spinner {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin-top: 1px;
+  border: 2px solid rgba(125, 211, 252, 0.2);
+  border-top-color: #7dd3fc;
+  border-radius: 50%;
+  animation: customer-ai-spin 0.8s linear infinite;
+}
+
+@keyframes customer-ai-spin {
+  to { transform: rotate(360deg); }
+}
+
 .customer-ai-workspace .customer-ai-input-column textarea {
   min-height: 148px;
   margin-bottom: 12px;
