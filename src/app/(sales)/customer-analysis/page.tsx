@@ -18,7 +18,6 @@ type Customer = {
   segment: Segment;
 };
 
-const segments: Segment[] = ['VIP – mua nhiều', 'Khách tiềm năng', 'Mua đều / ổn định', 'Khách mới', 'Giảm mua / ngừng mua'];
 const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('vi-VN').format(new Date(value)) : 'Chưa có đơn';
 const formatDays = (value: number | null) => value === null ? 'Chưa mua' : `${value} ngày`;
@@ -30,7 +29,6 @@ const formatAiReply = (value: string) => value
 
 export default function CustomerAnalysisPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [activeSegment, setActiveSegment] = useState<Segment | 'Tất cả'>('Tất cả');
   const aiPromptRef = useRef<HTMLTextAreaElement>(null);
   const [aiReply, setAiReply] = useState('');
   const [loading, setLoading] = useState(true);
@@ -57,7 +55,7 @@ export default function CustomerAnalysisPage() {
     loadCustomers();
   }, []);
 
-  const visibleCustomers = useMemo(() => activeSegment === 'Tất cả' ? customers : customers.filter((customer) => customer.segment === activeSegment), [activeSegment, customers]);
+  const visibleCustomers = customers;
   const filterByTimeline = (items: Customer[], timeline: string) => {
     if (timeline === 'all') return items;
     const days = Number(timeline);
@@ -70,24 +68,6 @@ export default function CustomerAnalysisPage() {
   };
   const q4Customers = useMemo(() => filterBySearch(filterByTimeline(customers.filter((customer) => customer.company.toLowerCase().includes('quận 4')), q4Timeline), q4Search), [customers, q4Search, q4Timeline]);
   const purchasedCustomers = useMemo(() => filterBySearch(filterByTimeline(customers.filter((customer) => customer.orderCount > 0), purchasedTimeline), purchasedSearch), [customers, purchasedSearch, purchasedTimeline]);
-  const counts = segments.reduce<Record<string, number>>((result, segment) => ({ ...result, [segment]: customers.filter((customer) => customer.segment === segment).length }), {});
-
-  const metrics = useMemo(() => {
-    const totalRevenue = customers.reduce((sum, customer) => sum + customer.totalSpent, 0);
-    const vipCount = counts['VIP – mua nhiều'] ?? 0;
-    const potentialCount = counts['Khách tiềm năng'] ?? 0;
-    const riskCount = counts['Giảm mua / ngừng mua'] ?? 0;
-    const avgOrderValue = customers.length ? customers.reduce((sum, customer) => sum + customer.avgOrderValue, 0) / customers.length : 0;
-
-    return {
-      totalRevenue,
-      vipCount,
-      potentialCount,
-      riskCount,
-      avgOrderValue,
-    };
-  }, [counts, customers]);
-
   async function analyzeWithAi() {
     setAiLoading(true);
     try {
@@ -154,19 +134,6 @@ export default function CustomerAnalysisPage() {
       </div>
 
       {importMessage && <div className="customer-import-message">{importMessage}</div>}
-
-      <div className="customer-summary-grid">
-        <div className="summary-card accent-blue"><span>Tổng doanh số</span><strong>{formatVnd(metrics.totalRevenue)}</strong><small>Toàn bộ khách hàng</small></div>
-        <div className="summary-card accent-green"><span>VIP – mua nhiều</span><strong>{metrics.vipCount}</strong><small>Khách giá trị cao</small></div>
-        <div className="summary-card accent-violet"><span>Khách tiềm năng</span><strong>{metrics.potentialCount}</strong><small>Đáng đầu tư chăm sóc</small></div>
-        <div className="summary-card accent-orange"><span>Nguy cơ giảm mua</span><strong>{metrics.riskCount}</strong><small>Đòi chăm sóc lại</small></div>
-        <div className="summary-card accent-slate"><span>Giá trị TB / khách</span><strong>{formatVnd(metrics.avgOrderValue)}</strong><small>Trung bình</small></div>
-      </div>
-
-      <div className="customer-segment-grid">
-        <button className={`customer-segment-card ${activeSegment === 'Tất cả' ? 'active' : ''}`} onClick={() => setActiveSegment('Tất cả')}><span>Tổng khách</span><strong>{customers.length}</strong></button>
-        {segments.map((segment) => <button key={segment} className={`customer-segment-card ${activeSegment === segment ? 'active' : ''}`} onClick={() => setActiveSegment(segment)}><span>{segment}</span><strong>{counts[segment] ?? 0}</strong></button>)}
-      </div>
 
       <section className="customer-dual-table-grid">
         {[
