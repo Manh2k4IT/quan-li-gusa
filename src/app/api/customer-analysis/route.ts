@@ -227,7 +227,18 @@ export async function POST(request: Request) {
       }),
     });
 
-    if (!response.ok) return NextResponse.json({ reply: 'AI tạm thời không phản hồi. Bạn vẫn có thể dùng phân loại tự động trên bảng.', provider: 'fallback' });
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => null) as { error?: { code?: string; message?: string } } | null;
+      const errorCode = errorPayload?.error?.code;
+      const errorMessage = errorPayload?.error?.message ?? '';
+      const reply = response.status === 401
+        ? 'OPENAI_API_KEY trên server không hợp lệ hoặc đã bị thu hồi. Hãy tạo key mới và cập nhật lại trên Render.'
+        : response.status === 429
+          ? 'Tài khoản OpenAI đã hết quota hoặc đang bị giới hạn tốc độ. Kiểm tra Billing và Limits của Project.'
+          : `OpenAI không phản hồi thành công (${response.status}${errorCode ? `, ${errorCode}` : ''}). ${errorMessage || 'Hãy kiểm tra cấu hình model và Project.'}`;
+      console.error('Customer AI provider error:', response.status, errorCode, errorMessage);
+      return NextResponse.json({ reply, provider: 'fallback' });
+    }
     const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
     return NextResponse.json({ reply: payload.choices?.[0]?.message?.content?.trim() ?? 'AI chưa đưa ra phân tích.', provider: 'openai' });
   } catch (error) {
