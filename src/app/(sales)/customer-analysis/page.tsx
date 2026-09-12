@@ -86,11 +86,15 @@ export default function CustomerAnalysisPage() {
   async function analyzeWithAi() {
     setAiLoading(true);
     try {
-      const response = await fetch('/api/customer-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: aiPrompt, customers: visibleCustomers }) });
+      const compactCustomers = visibleCustomers.map(({ name, company, status, orderCount, totalSpent, lastOrderAt, daysSinceLastOrder, segment }) => ({ name, company, status, orderCount, totalSpent, lastOrderAt, daysSinceLastOrder, segment }));
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 30000);
+      const response = await fetch('/api/customer-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: aiPrompt, customers: compactCustomers }), signal: controller.signal });
+      window.clearTimeout(timeout);
       const payload = await response.json();
       setAiReply(payload.reply ?? 'AI chưa trả về kết quả.');
-    } catch {
-      setAiReply('Không thể kết nối AI lúc này.');
+    } catch (error) {
+      setAiReply(error instanceof DOMException && error.name === 'AbortError' ? 'AI phản hồi quá lâu. Hãy thu hẹp nhóm khách hoặc thử lại.' : 'Không thể kết nối AI lúc này.');
     } finally {
       setAiLoading(false);
     }
