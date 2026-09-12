@@ -82,14 +82,17 @@ async function syncCustomersFromErp(orgId: string) {
       await Promise.all(operations.slice(index, index + 25));
     }
 
-    return synced;
+    return records;
   } catch (error) {
     console.error('ERP customer sync failed:', error);
-    return 0;
+    return [];
   }
 }
 
-function getSegment(input: { value: number; orderCount: number; lastOrderAt: Date | null; status: string }): CustomerSegment {
+function getSegment(input: { value: number; orderCount: number; firstOrderAt: Date | null; lastOrderAt: Date | null; status: string }): CustomerSegment {
+  const daysSinceFirstOrder = input.firstOrderAt
+    ? Math.floor((Date.now() - input.firstOrderAt.getTime()) / 86400000)
+    : Number.POSITIVE_INFINITY;
   const daysSinceLastOrder = input.lastOrderAt
     ? Math.floor((Date.now() - input.lastOrderAt.getTime()) / 86400000)
     : Number.POSITIVE_INFINITY;
@@ -97,7 +100,8 @@ function getSegment(input: { value: number; orderCount: number; lastOrderAt: Dat
   const status = normalizeStatus(input.status);
   const hasHotSignals = status.includes('hot') || status.includes('tiềm') || status.includes('warm') || status.includes('potential');
 
-  if (input.orderCount === 0) return 'Khách mới';
+  if (input.orderCount > 0 && daysSinceFirstOrder <= 90) return 'Khách mới';
+  if (input.orderCount === 0) return hasHotSignals || input.value > 0 ? 'Khách tiềm năng' : 'Mua đều / ổn định';
   if (daysSinceLastOrder > 180) return 'Giảm mua / ngừng mua';
   if (input.value >= 200_000_000 || input.orderCount >= 4 || (input.value >= 80_000_000 && daysSinceLastOrder <= 90)) return 'VIP – mua nhiều';
   if (hasHotSignals || input.value >= 50_000_000) return 'Khách tiềm năng';
@@ -108,9 +112,10 @@ function getSegment(input: { value: number; orderCount: number; lastOrderAt: Dat
 
 async function getAnalysis() {
   const organization = await prisma.organization.findFirst({ where: { slug: 'gusa' } });
+  let erpCustomers: Array<Record<string, unknown>> = [];
   let erpInvoices: Array<Record<string, unknown>> = [];
   if (organization) {
-    await syncCustomersFromErp(organization.id);
+    erpCustomers = await syncCustomersFromErp(organization.id);
     try {
       erpInvoices = await getErpSalesInvoices();
     } catch (error) {
@@ -122,16 +127,31 @@ async function getAnalysis() {
     include: { orders: { select: { total: true, createdAt: true, status: true } } },
     orderBy: { updatedAt: 'desc' },
   });
+  const erpCustomerNames = new Map<string, string>();
+  for (const erpCustomer of erpCustomers) {
+    const erpCode = String(erpCustomer.name ?? '').trim().toLowerCase();
+    const displayName = String(erpCustomer.customer_name ?? erpCustomer.name ?? '').trim().toLowerCase();
+    if (erpCode && displayName) erpCustomerNames.set(erpCode, displayName);
+  }
 
   return customers.map((customer) => {
     const orders = customer.orders;
+    const customerName = customer.name.trim().toLowerCase();
     const matchingInvoices = erpInvoices.filter((invoice) => {
-      const invoiceCustomer = String(invoice.customer_name ?? invoice.customer ?? '').trim().toLowerCase();
-      return invoiceCustomer === customer.name.trim().toLowerCase();
+      const invoiceDisplayName = String(invoice.customer_name ?? '').trim().toLowerCase();
+      const invoiceCode = String(invoice.customer ?? '').trim().toLowerCase();
+      return invoiceDisplayName === customerName || invoiceCode === customerName || erpCustomerNames.get(invoiceCode) === customerName;
     });
     const erpTotal = matchingInvoices.reduce((sum, invoice) => sum + normalizeErpValue(invoice.grand_total), 0);
     const totalSpent = orders.reduce((sum, order) => sum + order.total, 0);
+    const firstOrderAt = orders.reduce<Date | null>((earliest, order) => (!earliest || order.createdAt < earliest ? order.createdAt : earliest), null);
     const lastOrderAt = orders.reduce<Date | null>((latest, order) => (!latest || order.createdAt > latest ? order.createdAt : latest), null);
+    const erpFirstOrderAt = matchingInvoices.reduce<Date | null>((earliest, invoice) => {
+      const dateValue = String(invoice.posting_date ?? '').trim();
+      if (!dateValue) return earliest;
+      const date = new Date(dateValue);
+      return !Number.isNaN(date.getTime()) && (!earliest || date < earliest) ? date : earliest;
+    }, null);
     const erpLastOrderAt = matchingInvoices.reduce<Date | null>((latest, invoice) => {
       const dateValue = String(invoice.posting_date ?? '').trim();
       if (!dateValue) return latest;
@@ -140,8 +160,9 @@ async function getAnalysis() {
     }, null);
     const value = erpTotal || totalSpent || customer.value;
     const orderCount = matchingInvoices.length || orders.length;
+    const effectiveFirstOrderAt = erpFirstOrderAt || firstOrderAt;
     const effectiveLastOrderAt = erpLastOrderAt || lastOrderAt;
-    const segment = getSegment({ value, orderCount, lastOrderAt: effectiveLastOrderAt, status: customer.status });
+    const segment = getSegment({ value, orderCount, firstOrderAt: effectiveFirstOrderAt, lastOrderAt: effectiveLastOrderAt, status: customer.status });
 
     return {
       id: customer.id,
