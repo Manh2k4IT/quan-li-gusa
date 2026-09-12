@@ -51,6 +51,7 @@ async function syncCustomersFromErp(orgId: string) {
         .find(Boolean);
 
       if (existing) {
+        if (existing.name === name && existing.company === company && existing.email === email && existing.phone === phone && existing.status === status && existing.value === value) continue;
         operations.push(prisma.customer.update({
           where: { id: existing.id },
           data: {
@@ -127,43 +128,45 @@ async function getAnalysis() {
     include: { orders: { select: { total: true, createdAt: true, status: true } } },
     orderBy: { updatedAt: 'desc' },
   });
-  const erpCustomerNames = new Map<string, string>();
   const erpCustomerCodes = new Map<string, string>();
   for (const erpCustomer of erpCustomers) {
     const erpCode = String(erpCustomer.name ?? '').trim().toLowerCase();
     const displayName = String(erpCustomer.customer_name ?? erpCustomer.name ?? '').trim().toLowerCase();
     if (erpCode && displayName) {
-      erpCustomerNames.set(erpCode, displayName);
       erpCustomerCodes.set(displayName, erpCode);
     }
+  }
+
+  const invoiceStats = new Map<string, { count: number; total: number; firstOrderAt: Date | null; lastOrderAt: Date | null }>();
+  for (const invoice of erpInvoices) {
+    const invoiceCode = String(invoice.customer ?? '').trim().toLowerCase();
+    const invoiceDisplayName = String(invoice.customer_name ?? '').trim().toLowerCase();
+    const key = invoiceCode || erpCustomerCodes.get(invoiceDisplayName) || invoiceDisplayName;
+    if (!key) continue;
+    const dateValue = String(invoice.posting_date ?? '').trim();
+    const invoiceDate = dateValue ? new Date(dateValue) : null;
+    const validDate = invoiceDate && !Number.isNaN(invoiceDate.getTime()) ? invoiceDate : null;
+    const stats = invoiceStats.get(key) ?? { count: 0, total: 0, firstOrderAt: null, lastOrderAt: null };
+    stats.count += 1;
+    stats.total += normalizeErpValue(invoice.grand_total);
+    if (validDate && (!stats.firstOrderAt || validDate < stats.firstOrderAt)) stats.firstOrderAt = validDate;
+    if (validDate && (!stats.lastOrderAt || validDate > stats.lastOrderAt)) stats.lastOrderAt = validDate;
+    invoiceStats.set(key, stats);
   }
 
   return customers.map((customer) => {
     const orders = customer.orders;
     const customerName = customer.name.trim().toLowerCase();
-    const matchingInvoices = erpInvoices.filter((invoice) => {
-      const invoiceDisplayName = String(invoice.customer_name ?? '').trim().toLowerCase();
-      const invoiceCode = String(invoice.customer ?? '').trim().toLowerCase();
-      return invoiceDisplayName === customerName || invoiceCode === customerName || erpCustomerNames.get(invoiceCode) === customerName || invoiceCode === erpCustomerCodes.get(customerName);
-    });
-    const erpTotal = matchingInvoices.reduce((sum, invoice) => sum + normalizeErpValue(invoice.grand_total), 0);
+    const customerCode = erpCustomerCodes.get(customerName);
+    const stats = invoiceStats.get(customerCode ?? customerName);
+    const erpTotal = stats?.total ?? 0;
     const totalSpent = orders.reduce((sum, order) => sum + order.total, 0);
     const firstOrderAt = orders.reduce<Date | null>((earliest, order) => (!earliest || order.createdAt < earliest ? order.createdAt : earliest), null);
     const lastOrderAt = orders.reduce<Date | null>((latest, order) => (!latest || order.createdAt > latest ? order.createdAt : latest), null);
-    const erpFirstOrderAt = matchingInvoices.reduce<Date | null>((earliest, invoice) => {
-      const dateValue = String(invoice.posting_date ?? '').trim();
-      if (!dateValue) return earliest;
-      const date = new Date(dateValue);
-      return !Number.isNaN(date.getTime()) && (!earliest || date < earliest) ? date : earliest;
-    }, null);
-    const erpLastOrderAt = matchingInvoices.reduce<Date | null>((latest, invoice) => {
-      const dateValue = String(invoice.posting_date ?? '').trim();
-      if (!dateValue) return latest;
-      const date = new Date(dateValue);
-      return !Number.isNaN(date.getTime()) && (!latest || date > latest) ? date : latest;
-    }, null);
+    const erpFirstOrderAt = stats?.firstOrderAt ?? null;
+    const erpLastOrderAt = stats?.lastOrderAt ?? null;
     const value = erpTotal || totalSpent || customer.value;
-    const orderCount = matchingInvoices.length || orders.length;
+    const orderCount = stats?.count || orders.length;
     const effectiveFirstOrderAt = erpFirstOrderAt || firstOrderAt;
     const effectiveLastOrderAt = erpLastOrderAt || lastOrderAt;
     const segment = getSegment({ value, orderCount, firstOrderAt: effectiveFirstOrderAt, lastOrderAt: effectiveLastOrderAt, status: customer.status });
