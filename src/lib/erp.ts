@@ -274,17 +274,26 @@ export async function getErpCustomers() {
 
   await ensureErpSessionCookie();
 
-  const response = await fetchWithErpRetry(`${baseUrl}/api/resource/Customer?fields=${encodeURIComponent(JSON.stringify(fields))}&limit_page_length=500`, {
-    headers: getErpHeaders(),
-    cache: 'no-store',
-  });
+  const customers: Array<Record<string, unknown>> = [];
+  const pageSize = 500;
 
-  if (!response.ok) {
-    throw new Error(`ERP customer request failed: ${response.status} ${response.statusText}`);
+  for (let offset = 0; offset < 10000; offset += pageSize) {
+    const response = await fetchWithErpRetry(`${baseUrl}/api/resource/Customer?fields=${encodeURIComponent(JSON.stringify(fields))}&limit_page_length=${pageSize}&limit_start=${offset}`, {
+      headers: getErpHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error(`ERP customer request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const payload = (await response.json()) as { data?: Array<Record<string, unknown>> };
+    const page = Array.isArray(payload.data) ? payload.data : [];
+    customers.push(...page);
+    if (page.length < pageSize) break;
   }
 
-  const payload = (await response.json()) as { data?: Array<Record<string, unknown>> };
-  return Array.isArray(payload.data) ? payload.data : [];
+  return customers;
 }
 
 export async function getErpSalesInvoices() {
