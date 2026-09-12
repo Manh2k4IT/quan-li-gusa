@@ -1665,11 +1665,23 @@ button {
 
 .customer-ai-workspace .customer-ai-reply {
   flex: 1;
-  min-height: 164px;
+  height: 280px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  line-height: 1.7;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(125, 211, 252, 0.55) rgba(7, 15, 29, 0.5);
 }
 
 .customer-ai-reply.is-empty {
   color: var(--muted);
+}
+
+.customer-ai-workspace .customer-ai-input-column textarea {
+  min-height: 148px;
+  margin-bottom: 12px;
 }
 
 .customer-ai-button {

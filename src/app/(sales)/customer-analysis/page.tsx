@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 type Segment = 'VIP – mua nhiều' | 'Khách tiềm năng' | 'Mua đều / ổn định' | 'Khách mới' | 'Giảm mua / ngừng mua';
 type Customer = {
@@ -22,11 +22,16 @@ const segments: Segment[] = ['VIP – mua nhiều', 'Khách tiềm năng', 'Mua 
 const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('vi-VN').format(new Date(value)) : 'Chưa có đơn';
 const formatDays = (value: number | null) => value === null ? 'Chưa mua' : `${value} ngày`;
+const formatAiReply = (value: string) => value
+  .replace(/^#{1,6}\s*/gm, '')
+  .replace(/\*\*(.*?)\*\*/g, '$1')
+  .replace(/^\s*[-*]\s+/gm, '• ')
+  .trim();
 
 export default function CustomerAnalysisPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [activeSegment, setActiveSegment] = useState<Segment | 'Tất cả'>('Tất cả');
-  const [aiPrompt, setAiPrompt] = useState('Hãy phân tích nhóm khách hàng đang giảm mua hoặc ngừng mua trước, sau đó đề xuất cách Sale tiếp cận từng nhóm.');
+  const aiPromptRef = useRef<HTMLTextAreaElement>(null);
   const [aiReply, setAiReply] = useState('');
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
@@ -93,10 +98,11 @@ export default function CustomerAnalysisPage() {
         .map(({ name, company, status, orderCount, totalSpent, lastOrderAt, daysSinceLastOrder, segment }) => ({ name, company, status, orderCount, totalSpent, lastOrderAt, daysSinceLastOrder, segment }));
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 30000);
-      const response = await fetch('/api/customer-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: aiPrompt, customers: compactCustomers }), signal: controller.signal });
+      const prompt = aiPromptRef.current?.value.trim() || 'Hãy phân tích nhóm khách hàng đang giảm mua hoặc ngừng mua trước, sau đó đề xuất cách Sale tiếp cận từng nhóm.';
+      const response = await fetch('/api/customer-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, customers: compactCustomers }), signal: controller.signal });
       window.clearTimeout(timeout);
       const payload = await response.json();
-      setAiReply(payload.reply ?? 'AI chưa trả về kết quả.');
+      setAiReply(formatAiReply(payload.reply ?? 'AI chưa trả về kết quả.'));
     } catch (error) {
       setAiReply(error instanceof DOMException && error.name === 'AbortError' ? 'AI phản hồi quá lâu. Hãy thu hẹp nhóm khách hoặc thử lại.' : 'Không thể kết nối AI lúc này.');
     } finally {
@@ -217,7 +223,7 @@ export default function CustomerAnalysisPage() {
           <div className="customer-ai-workspace">
             <div className="customer-ai-input-column">
               <span className="customer-ai-column-label">Yêu cầu phân tích</span>
-              <textarea value={aiPrompt} onChange={(event) => setAiPrompt(event.target.value)} placeholder="Bạn muốn AI phân tích nhóm khách nào?" />
+              <textarea ref={aiPromptRef} defaultValue="Hãy phân tích nhóm khách hàng đang giảm mua hoặc ngừng mua trước, sau đó đề xuất cách Sale tiếp cận từng nhóm." placeholder="Bạn muốn AI phân tích nhóm khách nào?" />
               <button className="primary-btn customer-ai-button" onClick={analyzeWithAi} disabled={aiLoading || loading}>{aiLoading ? 'Đang phân tích...' : 'Phân tích khách hàng'}</button>
             </div>
             <div className="customer-ai-result-column">
