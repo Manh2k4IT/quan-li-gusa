@@ -1636,6 +1636,42 @@ button {
   resize: vertical;
 }
 
+.customer-ai-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr);
+  gap: 16px;
+}
+
+.customer-ai-input-column,
+.customer-ai-result-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.customer-ai-column-label {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.customer-ai-workspace .customer-ai-button {
+  align-self: flex-start;
+  margin: 0;
+}
+
+.customer-ai-workspace .customer-ai-reply {
+  flex: 1;
+  min-height: 164px;
+}
+
+.customer-ai-reply.is-empty {
+  color: var(--muted);
+}
+
 .customer-ai-button {
   margin-bottom: 16px;
 }
@@ -1661,6 +1697,10 @@ button {
 }
 
 @media (max-width: 620px) {
+  .customer-ai-workspace {
+    grid-template-columns: 1fr;
+  }
+
   .customer-list-filters {
     grid-template-columns: 1fr;
   }

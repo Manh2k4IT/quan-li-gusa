@@ -210,9 +210,19 @@ export default function CustomerAnalysisPage() {
           </div>
           <span className="live-status">Dùng nhóm đang chọn</span>
         </div>
-        <textarea value={aiPrompt} onChange={(event) => setAiPrompt(event.target.value)} placeholder="Bạn muốn AI phân tích nhóm khách nào?" />
-        <button className="primary-btn customer-ai-button" onClick={analyzeWithAi} disabled={aiLoading || loading}>{aiLoading ? 'Đang phân tích...' : 'Phân tích khách hàng'}</button>
-        {aiReply && <div className="customer-ai-reply">{aiReply}</div>}
+          <div className="customer-ai-workspace">
+            <div className="customer-ai-input-column">
+              <span className="customer-ai-column-label">Yêu cầu phân tích</span>
+              <textarea value={aiPrompt} onChange={(event) => setAiPrompt(event.target.value)} placeholder="Bạn muốn AI phân tích nhóm khách nào?" />
+              <button className="primary-btn customer-ai-button" onClick={analyzeWithAi} disabled={aiLoading || loading}>{aiLoading ? 'Đang phân tích...' : 'Phân tích khách hàng'}</button>
+            </div>
+            <div className="customer-ai-result-column">
+              <span className="customer-ai-column-label">Kết quả trả lời</span>
+              <div className={`customer-ai-reply ${!aiReply ? 'is-empty' : ''}`}>
+                {aiReply || 'Kết quả phân tích sẽ hiển thị ở đây.'}
+              </div>
+            </div>
+          </div>
       </section>
     </main>
   );
