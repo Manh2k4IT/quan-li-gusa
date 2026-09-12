@@ -31,6 +31,10 @@ export default function CustomerAnalysisPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState('');
+  const [q4Search, setQ4Search] = useState('');
+  const [purchasedSearch, setPurchasedSearch] = useState('');
+  const [q4Timeline, setQ4Timeline] = useState('all');
+  const [purchasedTimeline, setPurchasedTimeline] = useState('all');
 
   async function loadCustomers() {
     setLoading(true);
@@ -48,6 +52,18 @@ export default function CustomerAnalysisPage() {
   }, []);
 
   const visibleCustomers = useMemo(() => activeSegment === 'Tất cả' ? customers : customers.filter((customer) => customer.segment === activeSegment), [activeSegment, customers]);
+  const filterByTimeline = (items: Customer[], timeline: string) => {
+    if (timeline === 'all') return items;
+    const days = Number(timeline);
+    return items.filter((customer) => customer.lastOrderAt && (Date.now() - new Date(customer.lastOrderAt).getTime()) <= days * 86400000);
+  };
+  const filterBySearch = (items: Customer[], search: string) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((customer) => `${customer.name} ${customer.company} ${customer.status}`.toLowerCase().includes(query));
+  };
+  const q4Customers = useMemo(() => filterBySearch(filterByTimeline(customers.filter((customer) => customer.company.toLowerCase().includes('quận 4')), q4Timeline), q4Search), [customers, q4Search, q4Timeline]);
+  const purchasedCustomers = useMemo(() => filterBySearch(filterByTimeline(customers.filter((customer) => customer.orderCount > 0), purchasedTimeline), purchasedSearch), [customers, purchasedSearch, purchasedTimeline]);
   const counts = segments.reduce<Record<string, number>>((result, segment) => ({ ...result, [segment]: customers.filter((customer) => customer.segment === segment).length }), {});
 
   const metrics = useMemo(() => {
@@ -137,53 +153,47 @@ export default function CustomerAnalysisPage() {
         {segments.map((segment) => <button key={segment} className={`customer-segment-card ${activeSegment === segment ? 'active' : ''}`} onClick={() => setActiveSegment(segment)}><span>{segment}</span><strong>{counts[segment] ?? 0}</strong></button>)}
       </div>
 
-      <section className="panel customer-table-panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">CRM SIGNALS</p>
-            <h3>{activeSegment === 'Tất cả' ? 'Tất cả khách hàng' : activeSegment}</h3>
-          </div>
-          <span className="live-status">{visibleCustomers.length} khách</span>
-        </div>
-
-        {loading ? (
-          <p className="empty-state">Đang tải dữ liệu khách hàng...</p>
-        ) : (
-          <div className="table-wrap customer-analysis-table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Khách hàng</th>
-                  <th>Công ty</th>
-                  <th>Nhóm</th>
-                  <th>Số đơn</th>
-                  <th>Tổng mua</th>
-                  <th>TB / đơn</th>
-                  <th>Ngày mua gần nhất</th>
-                  <th>Độ gần gũi</th>
-                  <th>Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleCustomers.map((customer) => (
-                  <tr key={customer.id}>
-                    <td>
-                      <strong>{customer.name}</strong>
-                    </td>
-                    <td>{customer.company}</td>
-                    <td><span className="customer-segment-badge">{customer.segment}</span></td>
+      <section className="customer-dual-table-grid">
+        {[
+          { title: 'Tất cả khách hàng Quận 4', note: 'Toàn bộ hồ sơ khách thuộc nhóm Quận 4', items: q4Customers, search: q4Search, setSearch: setQ4Search, timeline: q4Timeline, setTimeline: setQ4Timeline },
+          { title: 'Khách đã phát sinh đơn', note: 'Chỉ khách có hóa đơn đã ghi sổ trên ERP', items: purchasedCustomers, search: purchasedSearch, setSearch: setPurchasedSearch, timeline: purchasedTimeline, setTimeline: setPurchasedTimeline },
+        ].map((list) => (
+          <section className="panel customer-table-panel customer-list-panel" key={list.title}>
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">CRM SIGNALS</p>
+                <h3>{list.title}</h3>
+                <span className="panel-note">{list.note}</span>
+              </div>
+              <span className="live-status">{list.items.length} khách</span>
+            </div>
+            <div className="customer-list-filters">
+              <input value={list.search} onChange={(event) => list.setSearch(event.target.value)} placeholder="Tìm tên, nhóm, trạng thái..." aria-label={`Tìm kiếm ${list.title}`} />
+              <select value={list.timeline} onChange={(event) => list.setTimeline(event.target.value)} aria-label={`Timeline ${list.title}`}>
+                <option value="all">Mọi thời gian</option>
+                <option value="30">Mua trong 30 ngày</option>
+                <option value="90">Mua trong 90 ngày</option>
+                <option value="180">Mua trong 6 tháng</option>
+                <option value="365">Mua trong 12 tháng</option>
+              </select>
+            </div>
+            {loading ? <p className="empty-state">Đang tải dữ liệu khách hàng...</p> : (
+              <div className="table-wrap customer-analysis-table-wrap">
+                <table className="data-table">
+                  <thead><tr><th>Khách hàng</th><th>Nhóm</th><th>Số đơn</th><th>Tổng mua</th><th>Mua gần nhất</th></tr></thead>
+                  <tbody>{list.items.map((customer) => <tr key={customer.id}>
+                    <td><strong>{customer.name}</strong><small className="customer-row-status">{customer.status}</small></td>
+                    <td><span className="customer-segment-badge">{customer.company}</span></td>
                     <td>{customer.orderCount}</td>
                     <td>{formatVnd(customer.totalSpent)}</td>
-                    <td>{formatVnd(customer.avgOrderValue)}</td>
                     <td>{formatDate(customer.lastOrderAt)}</td>
-                    <td>{formatDays(customer.daysSinceLastOrder)}</td>
-                    <td>{customer.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  </tr>)}</tbody>
+                </table>
+                {!list.items.length && <p className="empty-state">Không có khách phù hợp bộ lọc.</p>}
+              </div>
+            )}
+          </section>
+        ))}
       </section>
 
       <section className="panel customer-ai-panel">
