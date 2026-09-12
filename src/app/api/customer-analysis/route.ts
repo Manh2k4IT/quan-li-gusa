@@ -174,6 +174,7 @@ async function getAnalysis() {
     return {
       id: customer.id,
       name: customer.name,
+      phone: customer.phone,
       company: customer.company ?? 'Chưa có công ty',
       status: customer.status,
       orderCount,

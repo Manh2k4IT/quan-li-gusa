@@ -7,6 +7,7 @@ type Segment = 'VIP – mua nhiều' | 'Khách tiềm năng' | 'Mua đều / ổ
 type Customer = {
   id: string;
   name: string;
+  phone: string | null;
   company: string;
   status: string;
   orderCount: number;
@@ -180,9 +181,10 @@ export default function CustomerAnalysisPage() {
             {loading ? <p className="empty-state">Đang tải dữ liệu khách hàng...</p> : (
               <div className="table-wrap customer-analysis-table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>Khách hàng</th><th>Nhóm</th><th>Số đơn</th><th>Tổng mua</th><th>Mua gần nhất</th></tr></thead>
+                  <thead><tr><th>Khách hàng</th><th>Số điện thoại</th><th>Nhóm</th><th>Số đơn</th><th>Tổng mua</th><th>Mua gần nhất</th></tr></thead>
                   <tbody>{list.items.map((customer) => <tr key={customer.id}>
                     <td><strong>{customer.name}</strong><small className="customer-row-status">{customer.status}</small></td>
+                    <td>{customer.phone || 'Chưa có'}</td>
                     <td><span className="customer-segment-badge">{customer.company}</span></td>
                     <td>{customer.orderCount}</td>
                     <td>{formatVnd(customer.totalSpent)}</td>
