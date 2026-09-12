@@ -268,6 +268,44 @@ async function fetchWithErpRetry(input: RequestInfo | URL, init: RequestInit = {
   return response;
 }
 
+export async function getErpCustomers() {
+  const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
+  const fields = ['name', 'customer_name', 'customer_group', 'email_id', 'mobile_no', 'phone', 'customer_type', 'status', 'creation'];
+
+  await ensureErpSessionCookie();
+
+  const response = await fetchWithErpRetry(`${baseUrl}/api/resource/Customer?fields=${encodeURIComponent(JSON.stringify(fields))}&limit_page_length=500`, {
+    headers: getErpHeaders(),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error(`ERP customer request failed: ${response.status} ${response.statusText}`);
+  }
+
+  const payload = (await response.json()) as { data?: Array<Record<string, unknown>> };
+  return Array.isArray(payload.data) ? payload.data : [];
+}
+
+export async function getErpSalesInvoices() {
+  const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
+  const fields = ['name', 'customer', 'customer_name', 'grand_total', 'posting_date', 'status', 'docstatus'];
+
+  await ensureErpSessionCookie();
+
+  const response = await fetchWithErpRetry(`${baseUrl}/api/resource/Sales%20Invoice?fields=${encodeURIComponent(JSON.stringify(fields))}&filters=${encodeURIComponent(JSON.stringify([['docstatus', '=', 1]]))}&limit_page_length=5000`, {
+    headers: getErpHeaders(),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error(`ERP sales invoice request failed: ${response.status} ${response.statusText}`);
+  }
+
+  const payload = (await response.json()) as { data?: Array<Record<string, unknown>> };
+  return Array.isArray(payload.data) ? payload.data : [];
+}
+
 export function getErpConfig() {
   const apiUrl = cleanEnvValue(process.env.ERP_API_URL || process.env.ERP_BASE_URL) || 'https://gusaz.com';
   const apiKey = cleanEnvValue(process.env.ERP_API_KEY || process.env.ERP_USERNAME);

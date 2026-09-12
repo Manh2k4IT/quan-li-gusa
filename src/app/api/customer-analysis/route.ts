@@ -2,21 +2,113 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getErpCustomers, getErpSalesInvoices } from '@/lib/erp';
 
-type CustomerSegment = 'Mua nhiều' | 'Mua ít' | 'Khách tiềm năng' | 'Giảm mua / ngừng mua';
+export type CustomerSegment = 'VIP – mua nhiều' | 'Khách tiềm năng' | 'Mua đều / ổn định' | 'Khách mới' | 'Giảm mua / ngừng mua';
+
+function normalizeStatus(status: string) {
+  return status.toLowerCase();
+}
+
+function normalizeErpValue(value: unknown) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+async function syncCustomersFromErp(orgId: string) {
+  try {
+    const records = await getErpCustomers();
+    let synced = 0;
+
+    for (const row of records) {
+      const name = String(row.customer_name ?? row.name ?? row.customer ?? '').trim();
+      if (!name) continue;
+
+      const email = String(row.email_id ?? row.email ?? '').trim() || null;
+      const phone = String(row.mobile_no ?? row.phone ?? row.phone_no ?? '').trim() || null;
+      const company = String(row.customer_group ?? row.company ?? row.customer_type ?? '').trim() || null;
+      const status = String(row.status ?? row.customer_type ?? 'New').trim() || 'New';
+      const value = normalizeErpValue(row.grand_total ?? row.total_amount ?? row.outstanding_amount ?? row.value ?? 0);
+
+      const existing = await prisma.customer.findFirst({
+        where: {
+          orgId,
+          OR: [
+            ...(email ? [{ email }] : []),
+            ...(phone ? [{ phone }] : []),
+            { name },
+          ],
+        },
+      });
+
+      if (existing) {
+        await prisma.customer.update({
+          where: { id: existing.id },
+          data: {
+            name,
+            company: existing.company || company,
+            email: existing.email || email,
+            phone: existing.phone || phone,
+            status,
+            value: existing.value || value,
+          },
+        });
+      } else {
+        await prisma.customer.create({
+          data: {
+            name,
+            company,
+            email,
+            phone,
+            status,
+            value,
+            orgId,
+          },
+        });
+        synced += 1;
+      }
+    }
+
+    return synced;
+  } catch (error) {
+    console.error('ERP customer sync failed:', error);
+    return 0;
+  }
+}
 
 function getSegment(input: { value: number; orderCount: number; lastOrderAt: Date | null; status: string }): CustomerSegment {
   const daysSinceLastOrder = input.lastOrderAt
     ? Math.floor((Date.now() - input.lastOrderAt.getTime()) / 86400000)
     : Number.POSITIVE_INFINITY;
 
-  if (daysSinceLastOrder > 60 && input.orderCount > 0) return 'Giảm mua / ngừng mua';
-  if (input.value >= 10000000 || input.orderCount >= 5) return 'Mua nhiều';
-  if (input.status.toLowerCase().includes('hot') || input.status.toLowerCase().includes('tiềm')) return 'Khách tiềm năng';
-  return 'Mua ít';
+  const status = normalizeStatus(input.status);
+  const hasHotSignals = status.includes('hot') || status.includes('tiềm') || status.includes('warm') || status.includes('potential');
+
+  if (input.orderCount === 0) return 'Khách mới';
+  if (daysSinceLastOrder > 180) return 'Giảm mua / ngừng mua';
+  if (input.value >= 200_000_000 || input.orderCount >= 4 || (input.value >= 80_000_000 && daysSinceLastOrder <= 90)) return 'VIP – mua nhiều';
+  if (hasHotSignals || input.value >= 50_000_000) return 'Khách tiềm năng';
+  if (input.value >= 20_000_000 || input.orderCount >= 2) return 'Mua đều / ổn định';
+
+  return 'Mua đều / ổn định';
 }
 
 async function getAnalysis() {
+  const organization = await prisma.organization.findFirst({ where: { slug: 'gusa' } });
+  let erpInvoices: Array<Record<string, unknown>> = [];
+  if (organization) {
+    await syncCustomersFromErp(organization.id);
+    try {
+      erpInvoices = await getErpSalesInvoices();
+    } catch (error) {
+      console.error('ERP sales invoice sync failed:', error);
+    }
+  }
+
   const customers = await prisma.customer.findMany({
     include: { orders: { select: { total: true, createdAt: true, status: true } } },
     orderBy: { updatedAt: 'desc' },
@@ -24,18 +116,34 @@ async function getAnalysis() {
 
   return customers.map((customer) => {
     const orders = customer.orders;
+    const matchingInvoices = erpInvoices.filter((invoice) => {
+      const invoiceCustomer = String(invoice.customer_name ?? invoice.customer ?? '').trim().toLowerCase();
+      return invoiceCustomer === customer.name.trim().toLowerCase();
+    });
+    const erpTotal = matchingInvoices.reduce((sum, invoice) => sum + normalizeErpValue(invoice.grand_total), 0);
     const totalSpent = orders.reduce((sum, order) => sum + order.total, 0);
     const lastOrderAt = orders.reduce<Date | null>((latest, order) => (!latest || order.createdAt > latest ? order.createdAt : latest), null);
-    const segment = getSegment({ value: totalSpent || customer.value, orderCount: orders.length, lastOrderAt, status: customer.status });
+    const erpLastOrderAt = matchingInvoices.reduce<Date | null>((latest, invoice) => {
+      const dateValue = String(invoice.posting_date ?? '').trim();
+      if (!dateValue) return latest;
+      const date = new Date(dateValue);
+      return !Number.isNaN(date.getTime()) && (!latest || date > latest) ? date : latest;
+    }, null);
+    const value = erpTotal || totalSpent || customer.value;
+    const orderCount = matchingInvoices.length || orders.length;
+    const effectiveLastOrderAt = erpLastOrderAt || lastOrderAt;
+    const segment = getSegment({ value, orderCount, lastOrderAt: effectiveLastOrderAt, status: customer.status });
 
     return {
       id: customer.id,
       name: customer.name,
       company: customer.company ?? 'Chưa có công ty',
       status: customer.status,
-      orderCount: orders.length,
-      totalSpent: totalSpent || customer.value,
-      lastOrderAt: lastOrderAt?.toISOString() ?? null,
+      orderCount,
+      totalSpent: value,
+      avgOrderValue: orderCount ? value / orderCount : value,
+      lastOrderAt: effectiveLastOrderAt?.toISOString() ?? null,
+      daysSinceLastOrder: effectiveLastOrderAt ? Math.floor((Date.now() - effectiveLastOrderAt.getTime()) / 86400000) : null,
       segment,
     };
   });

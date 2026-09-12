@@ -70,20 +70,39 @@ async function main() {
     },
   });
 
-  const customer = await prisma.customer.upsert({
-    where: { id: 'customer-1' },
-    update: {},
-    create: {
-      id: 'customer-1',
-      name: 'Nguyễn Minh',
-      company: 'Mtech',
-      email: 'minh@mtech.vn',
-      phone: '0900001111',
-      status: 'Hot',
-      value: 24500,
-      orgId: org.id,
-    },
-  });
+  const customers = [
+    { id: 'customer-1', name: 'Nguyễn Minh', company: 'Mtech', email: 'minh@mtech.vn', phone: '0900001111', status: 'Hot', value: 24500 },
+    { id: 'customer-2', name: 'Trần Lan', company: 'Hana Textiles', email: 'lan@hanatextiles.vn', phone: '0900002222', status: 'Warm', value: 89000 },
+    { id: 'customer-3', name: 'Phạm Hữu', company: 'Viet Style', email: 'huu@vietstyle.vn', phone: '0900003333', status: 'Lead', value: 40000 },
+    { id: 'customer-4', name: 'Ngọc Ánh', company: 'Mira Fashion', email: 'anh@mira.vn', phone: '0900004444', status: 'Cold', value: 25000 },
+    { id: 'customer-5', name: 'Bùi Quốc', company: 'Urban Goods', email: 'quoc@urbangoods.vn', phone: '0900005555', status: 'Hot', value: 185000 },
+    { id: 'customer-6', name: 'Lê Thu', company: 'Bloom Studio', email: 'thu@bloomstudio.vn', phone: '0900006666', status: 'Potential', value: 63000 },
+  ];
+
+  for (const customer of customers) {
+    await prisma.customer.upsert({
+      where: { id: customer.id },
+      update: {
+        name: customer.name,
+        company: customer.company,
+        email: customer.email,
+        phone: customer.phone,
+        status: customer.status,
+        value: customer.value,
+        orgId: org.id,
+      },
+      create: {
+        id: customer.id,
+        name: customer.name,
+        company: customer.company,
+        email: customer.email,
+        phone: customer.phone,
+        status: customer.status,
+        value: customer.value,
+        orgId: org.id,
+      },
+    });
+  }
 
   await prisma.product.upsert({
     where: { sku: 'SP-101' },
@@ -97,16 +116,30 @@ async function main() {
     },
   });
 
-  await prisma.order.upsert({
-    where: { id: 'order-1' },
-    update: {},
-    create: {
-      id: 'order-1',
-      customerId: customer.id,
-      total: 24500,
-      status: 'Paid',
-    },
-  });
+  const orderDefinitions = [
+    { id: 'order-1', customerId: 'customer-1', total: 24500, status: 'Paid', createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) },
+    { id: 'order-2', customerId: 'customer-2', total: 89000, status: 'Paid', createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000) },
+    { id: 'order-3', customerId: 'customer-2', total: 125000, status: 'Paid', createdAt: new Date(Date.now() - 24 * 24 * 60 * 60 * 1000) },
+    { id: 'order-4', customerId: 'customer-3', total: 40000, status: 'Pending', createdAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000) },
+    { id: 'order-5', customerId: 'customer-4', total: 25000, status: 'Cancelled', createdAt: new Date(Date.now() - 72 * 24 * 60 * 60 * 1000) },
+    { id: 'order-6', customerId: 'customer-5', total: 185000, status: 'Paid', createdAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000) },
+    { id: 'order-7', customerId: 'customer-5', total: 240000, status: 'Paid', createdAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000) },
+    { id: 'order-8', customerId: 'customer-6', total: 63000, status: 'Paid', createdAt: new Date(Date.now() - 50 * 24 * 60 * 60 * 1000) },
+  ];
+
+  for (const order of orderDefinitions) {
+    await prisma.order.upsert({
+      where: { id: order.id },
+      update: { customerId: order.customerId, total: order.total, status: order.status, createdAt: order.createdAt },
+      create: {
+        id: order.id,
+        customerId: order.customerId,
+        total: order.total,
+        status: order.status,
+        createdAt: order.createdAt,
+      },
+    });
+  }
 
   await prisma.document.upsert({
     where: { id: 'doc-1' },
