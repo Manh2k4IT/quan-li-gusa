@@ -47,8 +47,10 @@ function buildProductErpSummary(products: ProductInput[]) {
     productsWithSales: rows.filter((product) => product.soldQuantity > 0 || product.revenue > 0).length,
     productsWithoutSales: rows.filter((product) => product.soldQuantity <= 0 && product.revenue <= 0).length,
     productsOutOfStockWithSales: rows.filter((product) => product.soldQuantity > 0 && product.stock <= 0).length,
+    totalStock: rows.reduce((sum, product) => sum + product.stock, 0),
     topRevenue: [...rows].sort((first, second) => second.revenue - first.revenue).slice(0, 10),
     topQuantity: [...rows].sort((first, second) => second.soldQuantity - first.soldQuantity).slice(0, 10),
+    highestStock: rows.filter((product) => product.stock > 0).sort((first, second) => second.stock - first.stock).slice(0, 30),
     slowMovingStock: rows.filter((product) => product.stock > 0).sort((first, second) => first.soldQuantity - second.soldQuantity || second.stock - first.stock).slice(0, 10),
     stockRisk: rows.filter((product) => product.soldQuantity > 0 && product.stock <= 0).sort((first, second) => second.soldQuantity - first.soldQuantity).slice(0, 10),
   };
@@ -89,8 +91,8 @@ export async function POST(request: Request) {
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: process.env.OPENAI_WEB_MODEL || 'gpt-4.1-mini',
-          instructions: 'Bạn là chuyên gia chiến lược ngành thời trang và vải linen của GUSA tại Việt Nam. Chỉ phân tích trong bối cảnh thời trang, vải linen, bán lẻ/bán sỉ vải và sản phẩm thời trang liên quan. Trả lời hoàn toàn bằng tiếng Việt. ERP là nguồn sự thật về nội bộ GUSA; web chỉ cung cấp bối cảnh thị trường. Bắt buộc nghiên cứu nhiều nguồn web độc lập, ưu tiên nguồn mới và đáng tin cậy về linen, thời trang, màu sắc, chất liệu, hành vi mua, giá và mùa vụ tại Việt Nam hoặc khu vực phù hợp. Chủ động lựa chọn các số liệu ERP và mã/tên sản phẩm thực sự liên quan. Mỗi chiến lược phải có mục “Căn cứ ERP” nêu con số cụ thể và giải thích vì sao con số đó dẫn đến đề xuất; đồng thời có mục “Căn cứ thị trường” nêu tín hiệu web tương ứng. Không áp đặt số lượng số liệu cố định nhưng không được đưa chiến lược thiếu căn cứ định lượng. Nếu dữ liệu không đủ phải nói rõ. Không đưa lời khuyên chung chung, không bịa số, không lấy số web thay cho số ERP.',
-          input: `${prompt}${erpContext}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Hãy trả lời theo cấu trúc bắt buộc: 1) Chẩn đoán hiện trạng từ KPI ERP; 2) Xu hướng thị trường linen/thời trang có nguồn; 3) Các chiến lược ưu tiên, mỗi chiến lược gồm Căn cứ ERP (con số, mã/tên sản phẩm), Căn cứ thị trường, Lý do phù hợp với GUSA, Hành động, KPI mục tiêu; 4) Kế hoạch 30/60/90 ngày; 5) Việc cần làm trong 7 ngày.`,
+          instructions: 'Bạn là chuyên gia chiến lược ngành thời trang và vải linen của GUSA tại Việt Nam. Chỉ phân tích trong bối cảnh thời trang, vải linen, bán lẻ/bán sỉ vải và sản phẩm thời trang liên quan. ERP là nguồn sự thật; web chỉ cung cấp bối cảnh. Bắt buộc bắt đầu từ yêu cầu cụ thể và dữ liệu ERP rồi mới mở rộng bằng nhiều nguồn web. Khi người dùng hỏi tồn kho, bán chậm hoặc mã tồn, phần đầu bắt buộc là bảng SKU gồm mã, tên, tồn kho, đã bán, số đơn, doanh thu và lý do ưu tiên. Không được viện dẫn đánh giá khách hàng, chiến dịch cũ, giá bán lẻ hoặc thuộc tính không có trong ERP. Mỗi chiến lược phải nêu mã sản phẩm, số liệu ERP, tín hiệu thị trường, hành động và KPI. Không đưa lời khuyên chung chung, không bịa số.',
+          input: `${prompt}${erpContext}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Nếu hỏi tồn kho/bán chậm, trả lời theo cấu trúc: 1) Bảng mã tồn cần xử lý; 2) Chẩn đoán từng mã/nhóm mã từ ERP; 3) Tín hiệu thị trường có nguồn; 4) Chiến lược cụ thể cho từng mã/nhóm mã; 5) Kế hoạch 7/30/60/90 ngày và KPI. Nếu là câu hỏi khác, vẫn bắt đầu từ mã và số liệu ERP liên quan trước khi mở rộng sang thị trường.`,
           tools: [{ type: 'web_search', search_context_size: 'medium', user_location: { type: 'approximate', country: 'VN', city: 'Ho Chi Minh City', timezone: 'Asia/Ho_Chi_Minh' } }],
           tool_choice: 'required',
           include: ['web_search_call.action.sources'],

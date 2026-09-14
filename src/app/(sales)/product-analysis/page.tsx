@@ -117,11 +117,13 @@ export default function ProductAnalysisPage() {
     setAiLoading(true);
     setAiSources([]);
     try {
-      const compactProducts = [...groupProducts]
-        .sort((first, second) => second.revenue - first.revenue)
-        .slice(0, 300)
-        .map(({ sku, name, category: productCategory, soldQuantity, orderCount, revenue, stock }) => ({ sku, name, category: productCategory, soldQuantity, orderCount, revenue, stock }));
       const prompt = aiPromptRef.current?.value.trim() || 'Phân tích sản phẩm bán tốt, bán chậm, tồn kho cần chú ý và đề xuất hành động.';
+      const asksAboutStock = /tồn|kho|chậm|không bán|ứ đọng|xả hàng|thiếu hàng/.test(prompt.toLowerCase());
+      const stockPriority = [...groupProducts].filter((product) => product.stock !== 0).sort((first, second) => asksAboutStock ? second.stock - first.stock || first.soldQuantity - second.soldQuantity : first.soldQuantity - second.soldQuantity || second.stock - first.stock);
+      const revenuePriority = [...groupProducts].sort((first, second) => second.revenue - first.revenue);
+      const selectedProducts = new Map<string, ProductRow>();
+      for (const product of [...stockPriority.slice(0, 220), ...revenuePriority.slice(0, 100)]) selectedProducts.set(product.sku, product);
+      const compactProducts = [...selectedProducts.values()].slice(0, 300).map(({ sku, name, category: productCategory, soldQuantity, orderCount, revenue, stock }) => ({ sku, name, category: productCategory, soldQuantity, orderCount, revenue, stock }));
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 30000);
       const response = await fetch('/api/product-analysis', {
