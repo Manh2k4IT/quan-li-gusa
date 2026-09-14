@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type ProductRow = {
   sku: string;
@@ -27,6 +27,7 @@ const productGroups: Array<{ key: ProductGroupKey; label: string }> = [
 
 const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 const formatNumber = (value: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(value);
+const formatAiReply = (value: string) => value.replace(/^#{1,6}\s*/gm, '').replace(/\*\*(.*?)\*\*/g, '$1').replace(/^\s*[-*]\s+/gm, '• ').trim();
 
 export default function ProductAnalysisPage() {
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -35,6 +36,9 @@ export default function ProductAnalysisPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [sortKey, setSortKey] = useState<SortKey>('revenue');
+  const aiPromptRef = useRef<HTMLTextAreaElement>(null);
+  const [aiReply, setAiReply] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState<ProductGroupKey>(() => {
     if (typeof window === 'undefined') return 'fabric-q4';
     const group = new URLSearchParams(window.location.search).get('group');
@@ -58,6 +62,7 @@ export default function ProductAnalysisPage() {
       if (productGroups.some((item) => item.key === group)) {
         setActiveGroup(group as ProductGroupKey);
         setCategory('all');
+        setAiReply('');
       }
     };
     window.addEventListener('product-group-change', handleGroupChange);
@@ -81,6 +86,33 @@ export default function ProductAnalysisPage() {
     soldQuantity: groupProducts.reduce((sum, product) => sum + product.soldQuantity, 0),
     lowStock: groupProducts.filter((product) => product.stock <= Math.max(product.reorderPoint, 0) && product.soldQuantity > 0).length,
   }), [groupProducts]);
+
+  async function analyzeWithAi() {
+    if (aiLoading || loading || !groupProducts.length) return;
+    setAiLoading(true);
+    try {
+      const compactProducts = [...groupProducts]
+        .sort((first, second) => second.revenue - first.revenue)
+        .slice(0, 300)
+        .map(({ sku, name, category: productCategory, soldQuantity, orderCount, revenue, stock }) => ({ sku, name, category: productCategory, soldQuantity, orderCount, revenue, stock }));
+      const prompt = aiPromptRef.current?.value.trim() || 'Phân tích sản phẩm bán tốt, bán chậm, tồn kho cần chú ý và đề xuất hành động.';
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 30000);
+      const response = await fetch('/api/product-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, businessGroup: selectedGroup.label, products: compactProducts }),
+        signal: controller.signal,
+      });
+      window.clearTimeout(timeout);
+      const payload = await response.json();
+      setAiReply(formatAiReply(payload.reply ?? payload.message ?? 'AI chưa trả về kết quả.'));
+    } catch (requestError) {
+      setAiReply(requestError instanceof DOMException && requestError.name === 'AbortError' ? 'AI phản hồi quá lâu. Hãy thử lại.' : 'Không thể kết nối AI lúc này.');
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   return (
     <main className="sales-analysis-page product-analysis-page">
@@ -140,6 +172,26 @@ export default function ProductAnalysisPage() {
             {!visibleProducts.length && <p className="empty-state">Không có sản phẩm phù hợp bộ lọc.</p>}
           </div>
         )}
+      </section>
+
+      <section className="panel customer-ai-panel product-ai-panel">
+        <div className="panel-header">
+          <div><p className="eyebrow">AI PRODUCT ADVISOR</p><h3>Phân tích AI cho sản phẩm</h3></div>
+          <span className="live-status">Đang dùng {selectedGroup.label}</span>
+        </div>
+        <div className="customer-ai-workspace">
+          <div className="customer-ai-input-column">
+            <span className="customer-ai-column-label">Yêu cầu phân tích</span>
+            <textarea ref={aiPromptRef} defaultValue="Phân tích sản phẩm bán tốt, sản phẩm bán chậm, tồn kho cần chú ý và đề xuất hành động cụ thể." placeholder="Bạn muốn AI phân tích sản phẩm như thế nào?" />
+            <button className="primary-btn customer-ai-button" onClick={analyzeWithAi} disabled={aiLoading || loading || !groupProducts.length}>{aiLoading ? 'Đang phân tích...' : 'Phân tích sản phẩm'}</button>
+          </div>
+          <div className="customer-ai-result-column">
+            <span className="customer-ai-column-label">Kết quả trả lời</span>
+            <div className={`customer-ai-reply ${!aiReply ? 'is-empty' : ''}`}>
+              {aiLoading ? <div className="customer-ai-loading" role="status" aria-live="polite"><span className="customer-ai-spinner" aria-hidden="true" /><div><strong>Đang phân tích dữ liệu sản phẩm...</strong><small>AI đang đọc doanh thu, lượng bán và tồn kho ERP.</small></div></div> : aiReply || 'Kết quả phân tích sản phẩm sẽ hiển thị ở đây.'}
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   );
