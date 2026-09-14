@@ -174,10 +174,21 @@ button {
 }
 
 .nav-submenu-item:hover,
-.nav-submenu-item:focus-visible {
+.nav-submenu-item:focus-visible,
+.nav-submenu-item.active {
   background: rgba(141, 183, 218, 0.08);
   border-color: rgba(141, 183, 218, 0.3);
   transform: translateY(-1px);
+}
+
+.nav-submenu-item.active {
+  color: #ffffff;
+  background: rgba(109, 124, 255, 0.14);
+  border-color: rgba(109, 124, 255, 0.34);
+}
+
+.customer-analysis-submenu {
+  padding-left: 20px;
 }
 
 .content {
@@ -1611,6 +1622,7 @@ button {
   gap: 18px;
   margin-bottom: 18px;
 }
+
 
 .customer-list-panel {
   min-width: 0;

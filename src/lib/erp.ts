@@ -277,7 +277,7 @@ export async function getErpCustomers() {
   const customers: Array<Record<string, unknown>> = [];
   const pageSize = 500;
 
-  for (let offset = 0; offset < 10000; offset += pageSize) {
+  for (let offset = 0; offset < 50000; offset += pageSize) {
     const response = await fetchWithErpRetry(`${baseUrl}/api/resource/Customer?fields=${encodeURIComponent(JSON.stringify(fields))}&limit_page_length=${pageSize}&limit_start=${offset}`, {
       headers: getErpHeaders(),
       cache: 'no-store',

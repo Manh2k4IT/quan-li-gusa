@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 export default function SalesLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sessionUser, setSessionUser] = useState<{ name?: string; email?: string } | null>(null);
+  const [customerGroup, setCustomerGroup] = useState('fabric-q4');
   const isSalesReports = pathname.startsWith('/sales-reports');
   const isSalesPlan = pathname.startsWith('/sales-plan');
   const isCustomerAnalysis = pathname.startsWith('/customer-analysis');
@@ -16,7 +17,14 @@ export default function SalesLayout({ children }: { children: React.ReactNode })
       .then((response) => response.json())
       .then((payload) => setSessionUser(payload.user ?? null))
       .catch(() => setSessionUser(null));
+    const group = new URLSearchParams(window.location.search).get('group');
+    if (group) setCustomerGroup(group);
   }, []);
+
+  function selectCustomerGroup(group: string) {
+    setCustomerGroup(group);
+    window.dispatchEvent(new CustomEvent('customer-group-change', { detail: group }));
+  }
 
   const displayName = sessionUser?.name || sessionUser?.email || 'Sale';
 
@@ -54,6 +62,13 @@ export default function SalesLayout({ children }: { children: React.ReactNode })
             <span>◌</span>
             Phân tích khách hàng
           </Link>
+          {isCustomerAnalysis && (
+            <div className="nav-submenu customer-analysis-submenu">
+              <Link href="/customer-analysis?group=fashion-q4" onClick={() => selectCustomerGroup('fashion-q4')} className={`nav-submenu-item ${customerGroup === 'fashion-q4' ? 'active' : ''}`}>Thời trang Quận 4</Link>
+              <Link href="/customer-analysis?group=fabric-ben-thanh" onClick={() => selectCustomerGroup('fabric-ben-thanh')} className={`nav-submenu-item ${customerGroup === 'fabric-ben-thanh' ? 'active' : ''}`}>Vải Bến Thành</Link>
+              <Link href="/customer-analysis?group=fabric-q4" onClick={() => selectCustomerGroup('fabric-q4')} className={`nav-submenu-item ${customerGroup === 'fabric-q4' ? 'active' : ''}`}>Vải Quận 4</Link>
+            </div>
+          )}
 
         </nav>
 

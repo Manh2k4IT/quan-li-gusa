@@ -18,6 +18,13 @@ type Customer = {
   segment: Segment;
 };
 type ErpConnectionState = 'checking' | 'connected' | 'disconnected';
+type CustomerGroupKey = 'fashion-q4' | 'fabric-ben-thanh' | 'fabric-q4';
+
+const customerGroups: Array<{ key: CustomerGroupKey; label: string; match: string }> = [
+  { key: 'fashion-q4', label: 'Thời trang Quận 4', match: 'thoi trang quan 4' },
+  { key: 'fabric-ben-thanh', label: 'Vải Bến Thành', match: 'vai ben thanh' },
+  { key: 'fabric-q4', label: 'Vải Quận 4', match: 'vai quan 4' },
+];
 
 const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('vi-VN').format(new Date(value)) : 'Chưa có đơn';
@@ -27,6 +34,7 @@ const formatAiReply = (value: string) => value
   .replace(/\*\*(.*?)\*\*/g, '$1')
   .replace(/^\s*[-*]\s+/gm, '• ')
   .trim();
+const normalizeGroupName = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, ' ').trim();
 
 export default function CustomerAnalysisPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -42,6 +50,11 @@ export default function CustomerAnalysisPage() {
   const [purchasedSearch, setPurchasedSearch] = useState('');
   const [q4Timeline, setQ4Timeline] = useState('all');
   const [purchasedTimeline, setPurchasedTimeline] = useState('all');
+  const [activeGroup, setActiveGroup] = useState<CustomerGroupKey>(() => {
+    if (typeof window === 'undefined') return 'fabric-q4';
+    const group = new URLSearchParams(window.location.search).get('group');
+    return customerGroups.some((item) => item.key === group) ? group as CustomerGroupKey : 'fabric-q4';
+  });
 
   async function loadCustomers() {
     setLoading(true);
@@ -71,7 +84,21 @@ export default function CustomerAnalysisPage() {
     loadCustomers();
   }, []);
 
-  const visibleCustomers = customers;
+  useEffect(() => {
+    const handleGroupChange = (event: Event) => {
+      const group = (event as CustomEvent<string>).detail;
+      if (customerGroups.some((item) => item.key === group)) {
+        setActiveGroup(group as CustomerGroupKey);
+        setAiReply('');
+      }
+    };
+    window.addEventListener('customer-group-change', handleGroupChange);
+    return () => window.removeEventListener('customer-group-change', handleGroupChange);
+  }, []);
+
+  const selectedGroup = customerGroups.find((group) => group.key === activeGroup) ?? customerGroups[2];
+  const groupCustomers = useMemo(() => customers.filter((customer) => normalizeGroupName(customer.company).includes(selectedGroup.match)), [customers, selectedGroup.match]);
+  const visibleCustomers = groupCustomers;
   const filterByTimeline = (items: Customer[], timeline: string) => {
     if (timeline === 'all') return items;
     const days = Number(timeline);
@@ -82,8 +109,8 @@ export default function CustomerAnalysisPage() {
     if (!query) return items;
     return items.filter((customer) => `${customer.name} ${customer.company} ${customer.status}`.toLowerCase().includes(query));
   };
-  const q4Customers = useMemo(() => filterBySearch(filterByTimeline(customers.filter((customer) => customer.company.toLowerCase().includes('quận 4')), q4Timeline), q4Search), [customers, q4Search, q4Timeline]);
-  const purchasedCustomers = useMemo(() => filterBySearch(filterByTimeline(customers.filter((customer) => customer.orderCount > 0), purchasedTimeline), purchasedSearch), [customers, purchasedSearch, purchasedTimeline]);
+  const allGroupCustomers = useMemo(() => filterBySearch(filterByTimeline(groupCustomers, q4Timeline), q4Search), [groupCustomers, q4Search, q4Timeline]);
+  const purchasedCustomers = useMemo(() => filterBySearch(filterByTimeline(groupCustomers.filter((customer) => customer.orderCount > 0), purchasedTimeline), purchasedSearch), [groupCustomers, purchasedSearch, purchasedTimeline]);
   async function analyzeWithAi() {
     setAiLoading(true);
     try {
@@ -167,8 +194,8 @@ export default function CustomerAnalysisPage() {
 
       <section className="customer-dual-table-grid">
         {[
-          { title: 'Tất cả khách hàng Quận 4', note: 'Toàn bộ hồ sơ khách thuộc nhóm Quận 4', items: q4Customers, search: q4Search, setSearch: setQ4Search, timeline: q4Timeline, setTimeline: setQ4Timeline },
-          { title: 'Khách đã phát sinh đơn', note: 'Chỉ khách có hóa đơn đã ghi sổ trên ERP', items: purchasedCustomers, search: purchasedSearch, setSearch: setPurchasedSearch, timeline: purchasedTimeline, setTimeline: setPurchasedTimeline },
+          { title: `Tất cả khách hàng ${selectedGroup.label}`, note: `Toàn bộ hồ sơ thuộc nhóm ${selectedGroup.label} trên ERP`, items: allGroupCustomers, search: q4Search, setSearch: setQ4Search, timeline: q4Timeline, setTimeline: setQ4Timeline },
+          { title: `Khách ${selectedGroup.label} đã phát sinh đơn`, note: 'Chỉ khách có hóa đơn đã ghi sổ trên ERP', items: purchasedCustomers, search: purchasedSearch, setSearch: setPurchasedSearch, timeline: purchasedTimeline, setTimeline: setPurchasedTimeline },
         ].map((list) => (
           <section className="panel customer-table-panel customer-list-panel" key={list.title}>
             <div className="panel-header">
@@ -215,7 +242,7 @@ export default function CustomerAnalysisPage() {
             <p className="eyebrow">AI CRM ADVISOR</p>
             <h3>Phân tích AI cho khách hàng</h3>
           </div>
-          <span className="live-status">Dùng nhóm đang chọn</span>
+          <span className="live-status">Đang dùng {selectedGroup.label}</span>
         </div>
           <div className="customer-ai-workspace">
             <div className="customer-ai-input-column">

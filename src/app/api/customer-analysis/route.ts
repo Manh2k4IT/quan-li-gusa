@@ -116,7 +116,11 @@ async function getAnalysis() {
   let erpCustomers: Array<Record<string, unknown>> = [];
   let erpInvoices: Array<Record<string, unknown>> = [];
   if (organization) {
-    erpCustomers = await syncCustomersFromErp(organization.id);
+    try {
+      erpCustomers = await getErpCustomers();
+    } catch (error) {
+      console.error('ERP customer fetch failed:', error);
+    }
     try {
       erpInvoices = await getErpSalesInvoices();
     } catch (error) {
@@ -152,6 +156,33 @@ async function getAnalysis() {
     if (validDate && (!stats.firstOrderAt || validDate < stats.firstOrderAt)) stats.firstOrderAt = validDate;
     if (validDate && (!stats.lastOrderAt || validDate > stats.lastOrderAt)) stats.lastOrderAt = validDate;
     invoiceStats.set(key, stats);
+  }
+
+  if (erpCustomers.length) {
+    return erpCustomers.map((customer, index) => {
+      const customerCode = String(customer.name ?? '').trim().toLowerCase();
+      const name = String(customer.customer_name ?? customer.name ?? '').trim() || 'Khách chưa đặt tên';
+      const status = String(customer.customer_type ?? 'Chưa phân loại').trim() || 'Chưa phân loại';
+      const stats = invoiceStats.get(customerCode);
+      const value = stats?.total ?? 0;
+      const orderCount = stats?.count ?? 0;
+      const firstOrderAt = stats?.firstOrderAt ?? null;
+      const lastOrderAt = stats?.lastOrderAt ?? null;
+
+      return {
+        id: String(customer.name ?? `erp-customer-${index}`),
+        name,
+        phone: String(customer.mobile_no ?? '').trim() || null,
+        company: String(customer.customer_group ?? '').trim() || 'Chưa phân loại',
+        status,
+        orderCount,
+        totalSpent: value,
+        avgOrderValue: orderCount ? value / orderCount : 0,
+        lastOrderAt: lastOrderAt?.toISOString() ?? null,
+        daysSinceLastOrder: lastOrderAt ? Math.floor((Date.now() - lastOrderAt.getTime()) / 86400000) : null,
+        segment: getSegment({ value, orderCount, firstOrderAt, lastOrderAt, status }),
+      };
+    });
   }
 
   return customers.map((customer) => {
