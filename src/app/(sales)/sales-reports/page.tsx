@@ -28,24 +28,12 @@ type SalesReport = {
 };
 
 const storageKey = 'gusa-sales-reports';
-const emptyItem = () => ({
-  id: crypto.randomUUID(),
-  productCode: '',
-  productName: '',
-  quantity: '',
-  unitPrice: '',
-});
-
 const emptyForm = {
   date: new Date().toISOString().slice(0, 10),
-  orderCode: '',
   category: 'Thời trang Quận 4' as SalesReport['category'],
   salesperson: '',
-  paymentMethod: 'Chuyển khoản',
-  orderStatus: 'Đang xử lý',
-  target: '',
+  revenue: '',
   note: '',
-  items: [emptyItem()],
 };
 
 const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN', {
@@ -75,7 +63,7 @@ const normalizeLegacyReport = (item: Partial<SalesReport> & { productCode?: stri
     revenue: Number(entry.revenue ?? ((Number(entry.quantity ?? 0) || 0) * (Number(entry.unitPrice ?? 0) || 0))),
   }));
 
-  const totalRevenue = normalizedItems.reduce((sum, entry) => sum + entry.revenue, 0);
+  const totalRevenue = Number(item.revenue ?? normalizedItems.reduce((sum, entry) => sum + entry.revenue, 0));
 
   return {
     id: String(item.id ?? crypto.randomUUID()),
@@ -169,20 +157,18 @@ export default function SalesReportsPage() {
 
   const totals = useMemo(() => visibleReports.reduce((result, report) => ({
     revenue: result.revenue + report.revenue,
-    orders: result.orders + 1,
-    quantity: result.quantity + report.items.reduce((sum, item) => sum + item.quantity, 0),
+    reports: result.reports + 1,
     target: result.target,
-  }), { revenue: 0, orders: 0, quantity: 0, target: managerTarget }), [managerTarget, visibleReports]);
+  }), { revenue: 0, reports: 0, target: managerTarget }), [managerTarget, visibleReports]);
 
   const completion = totals.target ? Math.round((totals.revenue / totals.target) * 100) : 0;
 
   const memberPerformance = useMemo(() => {
-    const members = new Map<string, { name: string; revenue: number; orders: number; quantity: number }>();
+    const members = new Map<string, { name: string; revenue: number; reports: number }>();
     for (const report of visibleReports) {
-      const current = members.get(report.salesperson) ?? { name: report.salesperson, revenue: 0, orders: 0, quantity: 0 };
+      const current = members.get(report.salesperson) ?? { name: report.salesperson, revenue: 0, reports: 0 };
       current.revenue += report.revenue;
-      current.orders += 1;
-      current.quantity += report.items.reduce((sum, item) => sum + item.quantity, 0);
+      current.reports += 1;
       members.set(report.salesperson, current);
     }
     return [...members.values()].sort((left, right) => right.revenue - left.revenue);
@@ -195,62 +181,24 @@ export default function SalesReportsPage() {
     setSaved(false);
   };
 
-  const updateItem = (itemId: string, field: 'productCode' | 'productName' | 'quantity' | 'unitPrice', value: string) => {
-    setForm((current) => ({
-      ...current,
-      items: current.items.map((item) => item.id === itemId ? { ...item, [field]: value } : item),
-    }));
-    setSaved(false);
-  };
-
-  const addItemRow = () => {
-    setForm((current) => ({ ...current, items: [...current.items, emptyItem()] }));
-    setSaved(false);
-  };
-
-  const removeItemRow = (itemId: string) => {
-    setForm((current) => ({
-      ...current,
-      items: current.items.length > 1 ? current.items.filter((item) => item.id !== itemId) : current.items,
-    }));
-    setSaved(false);
-  };
-
   const saveReport = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    const normalizedItems = form.items
-      .filter((item) => item.productCode.trim() || item.productName.trim() || Number(item.quantity) > 0 || Number(item.unitPrice) > 0)
-      .map((item) => {
-        const quantity = Number(item.quantity) || 0;
-        const unitPrice = Number(item.unitPrice) || 0;
-        return {
-          id: item.id,
-          productCode: item.productCode.trim() || 'Chưa nhập',
-          productName: item.productName.trim() || 'Chưa nhập tên sản phẩm',
-          quantity,
-          unitPrice,
-          revenue: quantity * unitPrice,
-        };
-      });
-
-    if (!normalizedItems.length) {
-      return;
-    }
+    const dailyRevenue = Number(form.revenue) || 0;
+    if (dailyRevenue <= 0) return;
 
     const nextReport: SalesReport = {
       id: crypto.randomUUID(),
       date: form.date,
-      orderCode: form.orderCode.trim() || `CHUA-NHAP-${Date.now()}`,
+      orderCode: `BAO-CAO-NGAY-${form.date}-${Date.now()}`,
       category: form.category,
       team: form.category === 'Thời trang Quận 4' ? 'Thời trang' : 'Vải',
       salesperson: form.salesperson.trim() || 'Chưa ghi tên',
-      paymentMethod: form.paymentMethod,
-      orderStatus: form.orderStatus,
-      target: Number(form.target) || 0,
+      paymentMethod: 'Tổng hợp ngày',
+      orderStatus: 'Đã báo cáo',
+      target: 0,
       note: form.note.trim(),
-      items: normalizedItems,
-      revenue: normalizedItems.reduce((sum, item) => sum + item.revenue, 0),
+      items: [],
+      revenue: dailyRevenue,
     };
 
     const response = await fetch('/api/sales-reports', {
@@ -298,8 +246,8 @@ export default function SalesReportsPage() {
 
           <div className="stats-row" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', width: '100%', marginBottom: '20px' }}>
             <div className="metric-card"><span>Doanh thu thực tế</span><strong>{formatVnd(totals.revenue)}</strong><small>{completion}% kế hoạch</small></div>
-            <div className="metric-card"><span>Số đơn</span><strong>{totals.orders.toLocaleString('vi-VN')}</strong><small>Theo mã đơn hàng</small></div>
-            <div className="metric-card"><span>Sản lượng</span><strong>{totals.quantity.toLocaleString('vi-VN')}</strong><small>Sản phẩm hoặc mét vải</small></div>
+            <div className="metric-card"><span>Số báo cáo ngày</span><strong>{totals.reports.toLocaleString('vi-VN')}</strong><small>Theo khoảng đang xem</small></div>
+            <div className="metric-card"><span>Trung bình / báo cáo</span><strong>{formatVnd(totals.reports ? totals.revenue / totals.reports : 0)}</strong><small>Doanh thu bình quân</small></div>
           </div>
 
           <div className="sales-entry-layout" id="report-form">
@@ -308,50 +256,9 @@ export default function SalesReportsPage() {
               <form className="sales-report-form" onSubmit={saveReport}>
                 <label>Ngày báo cáo<input type="date" value={form.date} onChange={(event) => updateForm('date', event.target.value)} required /></label>
                 <label>Phân loại<select value={form.category} disabled={sessionUser?.role === 'SALE'} onChange={(event) => updateForm('category', event.target.value)}><option>Vải Bến Thành</option><option>Vải Quận 4</option><option>Thời trang Quận 4</option></select></label>
-                <label>Mã đơn hàng<input value={form.orderCode} onChange={(event) => updateForm('orderCode', event.target.value)} placeholder="Mã ĐH" required /></label>
                 <label>Nhân viên Sale<input value={form.salesperson} readOnly={sessionUser?.role === 'SALE'} onChange={(event) => updateForm('salesperson', event.target.value)} placeholder="Tên nhân viên" /></label>
-                <label>Phương thức thanh toán<select value={form.paymentMethod} onChange={(event) => updateForm('paymentMethod', event.target.value)}><option>Chuyển khoản</option><option>Tiền mặt</option><option>Công nợ</option><option>Quẹt thẻ</option></select></label>
-                <label>Trạng thái đơn hàng<select value={form.orderStatus} onChange={(event) => updateForm('orderStatus', event.target.value)}><option>Đang xử lý</option><option>Đã xác nhận</option><option>Đã giao</option><option>Hoàn tất</option><option>Đã hủy</option></select></label>
-                <label>Kế hoạch doanh thu<input type="number" min="0" value={form.target} onChange={(event) => updateForm('target', event.target.value)} placeholder="VNĐ" /></label>
+                <label>Doanh thu trong ngày<input type="number" min="1" value={form.revenue} onChange={(event) => updateForm('revenue', event.target.value)} placeholder="Nhập tổng doanh thu (VNĐ)" required /></label>
                 <label>Ghi chú<textarea value={form.note} onChange={(event) => updateForm('note', event.target.value)} placeholder="Tình hình, lý do thiếu/vượt kế hoạch" rows={3} /></label>
-
-                <div className="panel-subsection" style={{ gridColumn: '1 / -1' }}>
-                  <div className="panel-header" style={{ marginBottom: '12px' }}>
-                    <div><p className="eyebrow">Products</p><h3>Sản phẩm trong đơn</h3></div>
-                    <button type="button" className="ghost-btn" onClick={addItemRow}>+ Thêm sản phẩm</button>
-                  </div>
-
-                  {form.items.map((item) => {
-                    const itemRevenue = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
-
-                    return (
-                      <div key={item.id} className="product-item-row" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.6fr 0.9fr 0.9fr auto', gap: '10px', marginBottom: '12px' }}>
-                        <label>
-                          Mã SP
-                          <input value={item.productCode} onChange={(event) => updateItem(item.id, 'productCode', event.target.value)} placeholder="Mã sản phẩm" required />
-                        </label>
-                        <label>
-                          Tên SP
-                          <input value={item.productName} onChange={(event) => updateItem(item.id, 'productName', event.target.value)} placeholder="Tên sản phẩm" required />
-                        </label>
-                        <label>
-                          SL
-                          <input type="number" min="0" value={item.quantity} onChange={(event) => updateItem(item.id, 'quantity', event.target.value)} required />
-                        </label>
-                        <label>
-                          ĐG
-                          <input type="number" min="0" value={item.unitPrice} onChange={(event) => updateItem(item.id, 'unitPrice', event.target.value)} required />
-                        </label>
-                        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: '120px' }}>
-                          <strong>{formatVnd(itemRevenue)}</strong>
-                          {form.items.length > 1 && (
-                            <button type="button" className="ghost-btn" onClick={() => removeItemRow(item.id)} style={{ marginTop: '6px' }}>Xóa</button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
 
                 <button type="submit" className="primary-btn" style={{ gridColumn: '1 / -1' }}>Lưu báo cáo</button>
                 {saved && <span className="text-up" style={{ gridColumn: '1 / -1' }}>Đã lưu báo cáo trên thiết bị này.</span>}
@@ -368,16 +275,9 @@ export default function SalesReportsPage() {
                   <div className="recommendation-card" key={report.id}>
                     <div className="chat-avatar">{report.team === 'Vải' ? 'V' : 'T'}</div>
                     <div>
-                      <strong>{report.date} · {report.orderCode} · {report.category}</strong>
-                      <div style={{ marginTop: '8px' }}>
-                        {report.items.map((item) => (
-                          <p key={item.id} style={{ margin: '4px 0' }}>
-                            {item.productCode} · {item.productName} · {item.quantity.toLocaleString('vi-VN')} x {formatVnd(item.unitPrice)} = <strong>{formatVnd(item.revenue)}</strong>
-                          </p>
-                        ))}
-                      </div>
+                      <strong>{report.date} · {report.category}</strong>
                       <p style={{ marginTop: '8px' }}>
-                        Tổng: <strong>{formatVnd(report.revenue)}</strong> · {report.paymentMethod} · {report.orderStatus}
+                        Doanh thu ngày: <strong>{formatVnd(report.revenue)}</strong>
                       </p>
                       <small>Sale: {report.salesperson}{report.note ? ` · ${report.note}` : ''}</small>
                     </div>
@@ -396,7 +296,7 @@ export default function SalesReportsPage() {
                 <div className="member-chart-value">{formatVnd(member.revenue)}</div>
                 <div className="member-chart-track"><span style={{ height: `${Math.max((member.revenue / chartMaxRevenue) * 100, 3)}%` }} /></div>
                 <div className="member-chart-heading"><span className="member-rank">{index + 1}</span><strong>{member.name}</strong></div>
-                <small>{member.orders} đơn · {member.quantity.toLocaleString('vi-VN')} SL</small>
+                <small>{member.reports} báo cáo ngày</small>
               </div>)}
             </div>}
           </section>

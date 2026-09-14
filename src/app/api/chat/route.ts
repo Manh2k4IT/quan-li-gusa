@@ -94,13 +94,11 @@ async function buildBusinessContext() {
 
 function generateSalesReply(reports: SalesAnalysisReport[]) {
   const totalRevenue = reports.reduce((sum, report) => sum + Number(report.revenue || 0), 0);
-  const totalQuantity = reports.reduce((sum, report) => sum + report.items.reduce((itemSum, item) => itemSum + Number(item.quantity || 0), 0), 0);
   const bySalesperson = new Map<string, number>();
   reports.forEach((report) => bySalesperson.set(report.salesperson, (bySalesperson.get(report.salesperson) ?? 0) + Number(report.revenue || 0)));
   const ranking = [...bySalesperson.entries()].sort((left, right) => right[1] - left[1]).map(([name, revenue]) => `${name}: ${revenue.toLocaleString('vi-VN')} VND`).join('; ');
-  const unusual = reports.filter((report) => report.orderStatus.toLowerCase().includes('hủy') || report.orderStatus.toLowerCase().includes('không'));
 
-  return `Tổng hợp ${reports.length} báo cáo Sale nhập: doanh thu ${totalRevenue.toLocaleString('vi-VN')} VND, sản lượng ${totalQuantity}. Hiệu suất theo Sale: ${ranking || 'chưa đủ dữ liệu'}. ${unusual.length ? `Có ${unusual.length} báo cáo cần xử lý do trạng thái ${unusual.map((report) => report.orderStatus).join(', ')}.` : 'Chưa thấy báo cáo có trạng thái bất thường.'} Phương án: ưu tiên kiểm tra các đơn có trạng thái chưa hoàn tất, đối soát doanh thu với từng mã đơn, theo dõi Sale có doanh thu thấp và cập nhật ghi chú nguyên nhân trước khi chốt báo cáo.`;
+  return `Tổng hợp ${reports.length} báo cáo doanh thu ngày: ${totalRevenue.toLocaleString('vi-VN')} VND. Hiệu suất theo Sale: ${ranking || 'chưa đủ dữ liệu'}. Phương án: đối soát doanh thu cuối ngày, theo dõi Sale có doanh thu thấp và cập nhật ghi chú nguyên nhân trước khi chốt báo cáo.`;
 }
 
 function generateReply(message: string, context: Awaited<ReturnType<typeof buildBusinessContext>>) {

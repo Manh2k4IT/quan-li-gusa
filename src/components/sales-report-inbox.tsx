@@ -6,12 +6,9 @@ import Link from 'next/link';
 type SalesReport = {
   id: string;
   date: string;
-  orderCode: string;
   category: string;
   salesperson: string;
-  orderStatus: string;
   revenue: number;
-  items?: Array<{ productName?: string; quantity?: number }>;
 };
 
 const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN', {
@@ -65,17 +62,15 @@ export default function SalesReportInbox() {
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table">
             <thead>
-              <tr><th>Ngày</th><th>Sale</th><th>Mã đơn</th><th>Phân loại</th><th>Doanh thu</th><th>Trạng thái</th></tr>
+              <tr><th>Ngày</th><th>Sale</th><th>Phân loại</th><th>Doanh thu ngày</th></tr>
             </thead>
             <tbody>
               {reports.map((report) => (
                 <tr key={report.id}>
                   <td>{report.date}</td>
                   <td><strong>{report.salesperson}</strong></td>
-                  <td>{report.orderCode}</td>
                   <td>{report.category}</td>
                   <td><strong>{formatVnd(Number(report.revenue) || 0)}</strong></td>
-                  <td>{report.orderStatus}</td>
                 </tr>
               ))}
             </tbody>

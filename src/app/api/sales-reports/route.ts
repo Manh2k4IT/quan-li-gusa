@@ -48,20 +48,26 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ message: 'Phiên đăng nhập đã hết hạn.' }, { status: 401 });
 
     const body = await request.json();
+    const date = String(body.date ?? '').trim();
+    const category = String(body.category ?? '').trim();
+    const revenue = Number(body.revenue ?? 0);
+    if (!date || !category || !Number.isFinite(revenue) || revenue <= 0) {
+      return NextResponse.json({ message: 'Vui lòng nhập ngày, phân loại và doanh thu lớn hơn 0.' }, { status: 400 });
+    }
     const reportData = {
         id: body.id ? String(body.id) : undefined,
-        date: String(body.date ?? ''),
-        orderCode: String(body.orderCode ?? ''),
-        category: String(body.category ?? ''),
-        team: String(body.team ?? ''),
+        date,
+        orderCode: String(body.orderCode ?? `BAO-CAO-NGAY-${date}`),
+        category,
+        team: String(body.team ?? (category === 'Thời trang Quận 4' ? 'Thời trang' : 'Vải')),
         salesperson: session.role === 'SALE' ? session.name : String(body.salesperson ?? session.name),
         salespersonEmail: session.email,
-        paymentMethod: String(body.paymentMethod ?? ''),
-        orderStatus: String(body.orderStatus ?? ''),
+        paymentMethod: String(body.paymentMethod ?? 'Tổng hợp ngày'),
+        orderStatus: String(body.orderStatus ?? 'Đã báo cáo'),
         target: Number(body.target ?? 0),
         note: String(body.note ?? ''),
         items: Array.isArray(body.items) ? body.items : [],
-        revenue: Number(body.revenue ?? 0),
+        revenue,
         salespersonId: session.id && !session.id.includes('@') ? session.id : undefined,
     };
     const reportDelegate = (prisma as typeof prisma & { salesReport?: Pick<SalesReportDelegate, 'create'> }).salesReport;

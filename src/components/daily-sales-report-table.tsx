@@ -117,12 +117,11 @@ export default function DailySalesReportTable({ category }: { category: Category
   )), [category, fromDate, reports, saleFilter, toDate]);
   const totalRevenue = visibleReports.reduce((sum, report) => sum + report.revenue, 0);
   const leaderboard = useMemo(() => {
-    const totals = new Map<string, { name: string; revenue: number; orders: number; quantity: number }>();
+    const totals = new Map<string, { name: string; revenue: number; reports: number }>();
     visibleReports.forEach((report) => {
-      const current = totals.get(report.salesperson) ?? { name: report.salesperson, revenue: 0, orders: 0, quantity: 0 };
+      const current = totals.get(report.salesperson) ?? { name: report.salesperson, revenue: 0, reports: 0 };
       current.revenue += report.revenue;
-      current.orders += 1;
-      current.quantity += report.items.reduce((sum, item) => sum + item.quantity, 0);
+      current.reports += 1;
       totals.set(report.salesperson, current);
     });
     return [...totals.values()].sort((left, right) => right.revenue - left.revenue);
@@ -135,26 +134,16 @@ export default function DailySalesReportTable({ category }: { category: Category
     const reportData = visibleReports.map((report) => ({
       date: report.date,
       salesperson: report.salesperson,
-      orderCode: report.orderCode,
       category: report.category,
-      paymentMethod: report.paymentMethod,
-      orderStatus: report.orderStatus,
       revenue: report.revenue,
       note: report.note || 'Không có ghi chú',
-      items: report.items.map((item) => ({
-        productCode: item.productCode,
-        productName: item.productName,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        revenue: item.revenue,
-      })),
     }));
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: `Phân tích các báo cáo Sale nhập của ${category}. Hãy tổng hợp doanh thu, sản lượng, hiệu suất từng Sale, điểm bất thường và đưa ra phương án hành động cụ thể. Chỉ sử dụng dữ liệu báo cáo được gửi kèm, không sử dụng dữ liệu CRM, dữ liệu mẫu hoặc số liệu ngoài danh sách.`,
+          message: `Phân tích các báo cáo doanh thu ngày của ${category}. Hãy tổng hợp doanh thu, hiệu suất từng Sale, xu hướng theo ngày, điểm bất thường và đưa ra phương án hành động cụ thể. Chỉ sử dụng dữ liệu báo cáo được gửi kèm, không sử dụng dữ liệu CRM, dữ liệu mẫu hoặc số liệu ngoài danh sách.`,
           reportData,
         }),
       });
@@ -171,7 +160,7 @@ export default function DailySalesReportTable({ category }: { category: Category
   };
 
   const deleteReport = async (report: SalesReport) => {
-    if (!window.confirm(`Xóa báo cáo ${report.orderCode} của ${report.salesperson}?`)) return;
+    if (!window.confirm(`Xóa báo cáo ngày ${report.date} của ${report.salesperson}?`)) return;
 
     setDeletingReportId(report.id);
     try {
@@ -221,7 +210,7 @@ export default function DailySalesReportTable({ category }: { category: Category
         </section>
         <section className="panel" style={{ minHeight: '250px' }}>
           <div className="panel-header"><div><p className="eyebrow">SALES LEADERBOARD</p><h3>Doanh thu theo thành viên</h3></div><span className="badge success">{leaderboard.length} người</span></div>
-          {!leaderboard.length ? <p className="comparison-loading">Chưa có dữ liệu.</p> : <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{leaderboard.slice(0, 5).map((member, index) => { const maxRevenue = leaderboard[0]?.revenue || 1; return <div key={member.name} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto', gap: '8px', alignItems: 'center' }}><strong style={{ color: '#f5d76e' }}>{index + 1}</strong><div><strong style={{ color: '#edf5ff', fontSize: '0.85rem' }}>{member.name}</strong><div style={{ height: '7px', marginTop: '5px', background: 'rgba(141,183,218,0.16)', borderRadius: '999px', overflow: 'hidden' }}><span style={{ display: 'block', width: `${Math.max(5, (member.revenue / maxRevenue) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #5fe5c4, #5d8bff)', borderRadius: '999px' }} /></div></div><span style={{ color: '#9ad7ff', fontSize: '0.75rem', fontWeight: 700 }}>{formatVnd(member.revenue)}</span></div>; })}</div>}
+          {!leaderboard.length ? <p className="comparison-loading">Chưa có dữ liệu.</p> : <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{leaderboard.slice(0, 5).map((member, index) => { const maxRevenue = leaderboard[0]?.revenue || 1; return <div key={member.name} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto', gap: '8px', alignItems: 'center' }}><strong style={{ color: '#f5d76e' }}>{index + 1}</strong><div><strong style={{ color: '#edf5ff', fontSize: '0.85rem' }}>{member.name}</strong><div style={{ height: '7px', marginTop: '5px', background: 'rgba(141,183,218,0.16)', borderRadius: '999px', overflow: 'hidden' }}><span style={{ display: 'block', width: `${Math.max(5, (member.revenue / maxRevenue) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #5fe5c4, #5d8bff)', borderRadius: '999px' }} /></div><small>{member.reports} báo cáo ngày</small></div><span style={{ color: '#9ad7ff', fontSize: '0.75rem', fontWeight: 700 }}>{formatVnd(member.revenue)}</span></div>; })}</div>}
         </section>
       </div>
 
@@ -243,16 +232,13 @@ export default function DailySalesReportTable({ category }: { category: Category
         {!visibleReports.length ? <p className="comparison-loading">Chưa có báo cáo Sale cho ngày và khu vực này.</p> : (
           <div className="sales-report-table-scroll" style={{ maxHeight: '620px', overflowY: visibleReports.length > 10 ? 'auto' : 'visible', overflowX: 'auto' }}>
             <table className="data-table">
-              <thead><tr><th>Ngày</th><th>Sale</th><th>Mã đơn</th><th>Sản phẩm</th><th>Doanh thu</th><th>Trạng thái đơn</th><th>Ghi chú</th><th aria-label="Xóa" /></tr></thead>
+              <thead><tr><th>Ngày</th><th>Sale</th><th>Doanh thu ngày</th><th>Ghi chú</th><th aria-label="Xóa" /></tr></thead>
               <tbody>{visibleReports.map((report) => <tr key={report.id}>
                 <td>{report.date}</td>
                 <td><strong>{report.salesperson}</strong></td>
-                <td>{report.orderCode}</td>
-                <td>{report.items.map((item) => <div key={item.id ?? item.productCode} style={{ marginBottom: '4px' }}>{item.productName} × {item.quantity}</div>)}</td>
                 <td><strong>{formatVnd(report.revenue)}</strong></td>
-                <td>{report.orderStatus}</td>
                 <td title={report.note} style={{ maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{report.note || 'Không có ghi chú'}</td>
-                <td><button type="button" onClick={() => deleteReport(report)} disabled={deletingReportId === report.id} aria-label={`Xóa báo cáo ${report.orderCode}`} title="Xóa báo cáo" style={{ width: '30px', height: '30px', border: '1px solid rgba(255, 125, 125, 0.35)', borderRadius: '50%', background: 'rgba(255, 90, 90, 0.12)', color: '#ff9f9f', fontSize: '1.2rem', lineHeight: 1, cursor: deletingReportId === report.id ? 'wait' : 'pointer' }}>×</button></td>
+                <td><button type="button" onClick={() => deleteReport(report)} disabled={deletingReportId === report.id} aria-label={`Xóa báo cáo ngày ${report.date}`} title="Xóa báo cáo" style={{ width: '30px', height: '30px', border: '1px solid rgba(255, 125, 125, 0.35)', borderRadius: '50%', background: 'rgba(255, 90, 90, 0.12)', color: '#ff9f9f', fontSize: '1.2rem', lineHeight: 1, cursor: deletingReportId === report.id ? 'wait' : 'pointer' }}>×</button></td>
               </tr>)}</tbody>
             </table>
           </div>
