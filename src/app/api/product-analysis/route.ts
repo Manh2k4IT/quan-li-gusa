@@ -28,6 +28,8 @@ export async function POST(request: Request) {
     const prompt = String(body.prompt ?? 'Phân tích hiệu quả sản phẩm và đề xuất hành động bán hàng, tồn kho.').trim();
     const businessGroup = String(body.businessGroup ?? 'nhóm đang chọn').trim();
     const apiKey = process.env.OPENAI_API_KEY;
+    const normalizedPrompt = prompt.toLowerCase();
+    const needsProductData = /phân tích|sản phẩm|doanh thu|bán|tồn|kho|đơn|mã|sku|nhóm|chi nhánh|đề xuất|so sánh|xu hướng|hiệu quả/.test(normalizedPrompt);
 
     if (!apiKey) return NextResponse.json({ message: 'Chưa cấu hình OPENAI_API_KEY trên server.' }, { status: 503 });
 
@@ -38,8 +40,8 @@ export async function POST(request: Request) {
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         temperature: 0.2,
         messages: [
-          { role: 'system', content: 'Bạn là chuyên gia phân tích sản phẩm của GUSA. Trả lời hoàn toàn bằng tiếng Việt, ngắn gọn, dựa đúng dữ liệu ERP được cung cấp, không bịa số. Ưu tiên nêu sản phẩm bán tốt, bán chậm, tồn kho cần chú ý và hành động cụ thể.' },
-          { role: 'user', content: `${prompt}\n\nCHI NHÁNH: ${businessGroup}\nDỮ LIỆU SẢN PHẨM ERP:\n${JSON.stringify(products)}` },
+          { role: 'system', content: 'Bạn là trợ lý phân tích sản phẩm của GUSA. Trả lời hoàn toàn bằng tiếng Việt. Với lời chào hoặc hội thoại thông thường, hãy trả lời tự nhiên, ngắn gọn và không tự ý phân tích dữ liệu. Chỉ phân tích số liệu khi người dùng yêu cầu; khi phân tích phải dựa đúng dữ liệu ERP được cung cấp và không bịa số.' },
+          { role: 'user', content: needsProductData ? `${prompt}\n\nCHI NHÁNH: ${businessGroup}\nDỮ LIỆU SẢN PHẨM ERP:\n${JSON.stringify(products)}` : prompt },
         ],
       }),
     });
