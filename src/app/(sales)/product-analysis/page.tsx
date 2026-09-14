@@ -7,6 +7,7 @@ type ProductRow = {
   sku: string;
   name: string;
   category: string;
+  businessGroup: string;
   unitPrice: number;
   soldQuantity: number;
   orderCount: number;
@@ -16,6 +17,13 @@ type ProductRow = {
 };
 
 type SortKey = 'revenue' | 'soldQuantity' | 'orderCount' | 'stock';
+type ProductGroupKey = 'fashion-q4' | 'fabric-ben-thanh' | 'fabric-q4';
+
+const productGroups: Array<{ key: ProductGroupKey; label: string }> = [
+  { key: 'fashion-q4', label: 'Thời trang Quận 4' },
+  { key: 'fabric-ben-thanh', label: 'Vải Bến Thành' },
+  { key: 'fabric-q4', label: 'Vải Quận 4' },
+];
 
 const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 const formatNumber = (value: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(value);
@@ -27,6 +35,11 @@ export default function ProductAnalysisPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [sortKey, setSortKey] = useState<SortKey>('revenue');
+  const [activeGroup, setActiveGroup] = useState<ProductGroupKey>(() => {
+    if (typeof window === 'undefined') return 'fabric-q4';
+    const group = new URLSearchParams(window.location.search).get('group');
+    return productGroups.some((item) => item.key === group) ? group as ProductGroupKey : 'fabric-q4';
+  });
 
   useEffect(() => {
     fetch('/api/product-analysis', { cache: 'no-store' })
@@ -39,29 +52,43 @@ export default function ProductAnalysisPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const categories = useMemo(() => [...new Set(products.map((product) => product.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')), [products]);
+  useEffect(() => {
+    const handleGroupChange = (event: Event) => {
+      const group = (event as CustomEvent<string>).detail;
+      if (productGroups.some((item) => item.key === group)) {
+        setActiveGroup(group as ProductGroupKey);
+        setCategory('all');
+      }
+    };
+    window.addEventListener('product-group-change', handleGroupChange);
+    return () => window.removeEventListener('product-group-change', handleGroupChange);
+  }, []);
+
+  const selectedGroup = productGroups.find((group) => group.key === activeGroup) ?? productGroups[2];
+  const groupProducts = useMemo(() => products.filter((product) => product.businessGroup === selectedGroup.label), [products, selectedGroup.label]);
+  const categories = useMemo(() => [...new Set(groupProducts.map((product) => product.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')), [groupProducts]);
   const visibleProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return products
+    return groupProducts
       .filter((product) => category === 'all' || product.category === category)
       .filter((product) => !query || `${product.sku} ${product.name} ${product.category}`.toLowerCase().includes(query))
       .sort((first, second) => second[sortKey] - first[sortKey]);
-  }, [category, products, search, sortKey]);
+  }, [category, groupProducts, search, sortKey]);
 
   const metrics = useMemo(() => ({
-    products: products.length,
-    revenue: products.reduce((sum, product) => sum + product.revenue, 0),
-    soldQuantity: products.reduce((sum, product) => sum + product.soldQuantity, 0),
-    lowStock: products.filter((product) => product.stock <= Math.max(product.reorderPoint, 0) && product.soldQuantity > 0).length,
-  }), [products]);
+    products: groupProducts.length,
+    revenue: groupProducts.reduce((sum, product) => sum + product.revenue, 0),
+    soldQuantity: groupProducts.reduce((sum, product) => sum + product.soldQuantity, 0),
+    lowStock: groupProducts.filter((product) => product.stock <= Math.max(product.reorderPoint, 0) && product.soldQuantity > 0).length,
+  }), [groupProducts]);
 
   return (
     <main className="sales-analysis-page product-analysis-page">
       <div className="page-header">
         <div>
           <p className="eyebrow">ERP PRODUCT INTELLIGENCE</p>
-          <h2>Phân tích sản phẩm</h2>
-          <p className="page-subtitle">Theo dõi doanh thu, lượng bán và tồn kho sản phẩm trực tiếp từ ERP.</p>
+          <h2>Phân tích sản phẩm {selectedGroup.label}</h2>
+          <p className="page-subtitle">Theo dõi doanh thu, lượng bán và tồn kho {selectedGroup.label} trực tiếp từ ERP.</p>
         </div>
         <Link href="/customer-analysis" className="ghost-btn">Về phân tích khách hàng</Link>
       </div>

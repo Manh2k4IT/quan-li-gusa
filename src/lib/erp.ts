@@ -1367,6 +1367,7 @@ export type ErpProductAnalysisRow = {
   sku: string;
   name: string;
   category: string;
+  businessGroup: string;
   unitPrice: number;
   soldQuantity: number;
   orderCount: number;
@@ -1396,13 +1397,22 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
     return rows;
   }
 
-  const [items, bins, invoiceItems, orderItems] = await Promise.all([
+  const [items, bins, invoices, invoiceItems, orderItems] = await Promise.all([
     getAllRows('Item', ['name', 'item_code', 'item_name', 'item_group', 'standard_rate'], 1000),
     getAllRows('Bin', ['item_code', 'actual_qty', 'warehouse'], 5000),
+    getAllRows('Sales Invoice', ['name', 'branch', 'docstatus'], 5000),
     getAllRows('Sales Invoice Item', ['item_code', 'parent', 'qty', 'rate', 'amount', 'base_amount', 'net_amount', 'base_net_amount'], 5000).catch(() => []),
     getAllRows('Sales Order Item', ['item_code', 'parent', 'qty', 'rate', 'amount', 'base_amount'], 5000).catch(() => []),
   ]);
-  const stockBySku = new Map<string, number>();
+  const getGroup = (value: unknown) => {
+    const normalized = String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/đ/g, 'd');
+    if (normalized.includes('thoi trang q4') || normalized.includes('thoi trang quan 4')) return 'Thời trang Quận 4';
+    if (normalized.includes('vai ben thanh')) return 'Vải Bến Thành';
+    if (normalized.includes('vai quan 4')) return 'Vải Quận 4';
+    return null;
+  };
+  const invoiceGroup = new Map(invoices.filter((invoice) => Number(invoice.docstatus) !== 2).map((invoice) => [String(invoice.name ?? ''), getGroup(invoice.branch)]));
+  const stockByGroupSku = new Map<string, number>();
   const soldBySku = new Map<string, { quantity: number; revenue: number }>();
   const orderedBySku = new Map<string, { quantity: number; revenue: number }>();
   const reportSalesBySku = new Map<string, { quantity: number; revenue: number }>();
@@ -1412,7 +1422,11 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
 
   for (const bin of bins) {
     const sku = String(bin.item_code ?? '');
-    if (sku) stockBySku.set(sku, (stockBySku.get(sku) ?? 0) + toNumber(bin.actual_qty));
+    const group = getGroup(bin.warehouse);
+    if (sku && group) {
+      const key = `${group}|${sku}`;
+      stockByGroupSku.set(key, (stockByGroupSku.get(key) ?? 0) + toNumber(bin.actual_qty));
+    }
   }
 
   for (const invoiceItem of invoiceItems) {
@@ -1480,7 +1494,10 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
 
       for (const row of reportPayload.message?.result ?? []) {
         const sku = String(row.item_code ?? row.item ?? '');
-        if (!sku) continue;
+        const voucherNumber = String(row.voucher_no ?? row.sales_invoice ?? row.invoice ?? row.parent ?? row.reference_name ?? '');
+        const group = invoiceGroup.get(voucherNumber) ?? getGroup(row.customer_group) ?? getGroup(row.debit_to);
+        if (!sku || !group) continue;
+        const key = `${group}|${sku}`;
 
         const quantity = toNumber(row.qty ?? row.invoiced_qty ?? row.stock_qty ?? row.total_qty ?? row.quantity);
         const revenue = toNumber(row.amount)
@@ -1489,16 +1506,15 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
           || toNumber(row.base_amount)
           || toNumber(row.total_amount)
           || toNumber(row.net_total);
-        const current = reportSalesBySku.get(sku) ?? { quantity: 0, revenue: 0 };
-        reportSalesBySku.set(sku, {
+        const current = reportSalesBySku.get(key) ?? { quantity: 0, revenue: 0 };
+        reportSalesBySku.set(key, {
           quantity: current.quantity + quantity,
           revenue: current.revenue + revenue,
         });
-        const voucherNumber = String(row.voucher_no ?? row.sales_invoice ?? row.sales_order ?? row.invoice ?? row.parent ?? row.reference_name ?? '');
         if (voucherNumber) {
-          const orders = reportOrdersBySku.get(sku) ?? new Set<string>();
+          const orders = reportOrdersBySku.get(key) ?? new Set<string>();
           orders.add(voucherNumber);
-          reportOrdersBySku.set(sku, orders);
+          reportOrdersBySku.set(key, orders);
         }
       }
     }
@@ -1509,23 +1525,29 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
   const hasReportSales = [...reportSalesBySku.values()].some((sales) => sales.quantity !== 0 || sales.revenue !== 0);
   const hasInvoiceSales = [...soldBySku.values()].some((sales) => sales.quantity !== 0 || sales.revenue !== 0);
 
-  return items.map((item) => {
-    const sku = String(item.item_code ?? item.name ?? '');
-    const salesSource = hasReportSales ? reportSalesBySku : hasInvoiceSales ? soldBySku : orderedBySku;
-    const sales = salesSource.get(sku) ?? { quantity: 0, revenue: 0 };
-    const reportOrderCount = reportOrdersBySku.get(sku)?.size ?? 0;
+  const itemBySku = new Map(items.map((item) => [String(item.item_code ?? item.name ?? ''), item]));
+  const groupSkuKeys = new Set([...stockByGroupSku.keys(), ...reportSalesBySku.keys()]);
+
+  return [...groupSkuKeys].map((key) => {
+    const separator = key.indexOf('|');
+    const businessGroup = key.slice(0, separator);
+    const sku = key.slice(separator + 1);
+    const item = itemBySku.get(sku);
+    const sales = hasReportSales ? (reportSalesBySku.get(key) ?? { quantity: 0, revenue: 0 }) : hasInvoiceSales ? (soldBySku.get(sku) ?? { quantity: 0, revenue: 0 }) : (orderedBySku.get(sku) ?? { quantity: 0, revenue: 0 });
+    const reportOrderCount = reportOrdersBySku.get(key)?.size ?? 0;
     const invoiceOrderCount = invoiceOrdersBySku.get(sku)?.size ?? 0;
     const orderOrderCount = orderOrdersBySku.get(sku)?.size ?? 0;
 
     return {
       sku,
-      name: String(item.item_name ?? item.name ?? sku),
-      category: String(item.item_group ?? 'Chưa phân loại'),
-      unitPrice: toNumber(item.standard_rate),
+      name: String(item?.item_name ?? item?.name ?? sku),
+      category: String(item?.item_group ?? 'Chưa phân loại'),
+      businessGroup,
+      unitPrice: toNumber(item?.standard_rate),
       soldQuantity: sales.quantity,
       orderCount: reportOrderCount || invoiceOrderCount || orderOrderCount,
       revenue: sales.revenue,
-      stock: stockBySku.get(sku) ?? 0,
+      stock: stockByGroupSku.get(key) ?? 0,
       reorderPoint: 0,
     };
   });

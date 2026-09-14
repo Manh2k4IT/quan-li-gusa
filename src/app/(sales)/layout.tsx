@@ -25,6 +25,7 @@ export default function SalesLayout({ children }: { children: React.ReactNode })
   function selectCustomerGroup(group: string) {
     setCustomerGroup(group);
     window.dispatchEvent(new CustomEvent('customer-group-change', { detail: group }));
+    window.dispatchEvent(new CustomEvent('product-group-change', { detail: group }));
   }
 
   const displayName = sessionUser?.name || sessionUser?.email || 'Sale';
@@ -71,10 +72,17 @@ export default function SalesLayout({ children }: { children: React.ReactNode })
             </div>
           )}
 
-          <Link href="/product-analysis" className={`nav-item ${isProductAnalysis ? 'active' : ''}`}>
+          <Link href="/product-analysis?group=fabric-q4" className={`nav-item ${isProductAnalysis ? 'active' : ''}`}>
             <span>◇</span>
             Phân tích sản phẩm
           </Link>
+          {isProductAnalysis && (
+            <div className="nav-submenu customer-analysis-submenu">
+              <Link href="/product-analysis?group=fashion-q4" onClick={() => selectCustomerGroup('fashion-q4')} className={`nav-submenu-item ${customerGroup === 'fashion-q4' ? 'active' : ''}`}>Thời trang Quận 4</Link>
+              <Link href="/product-analysis?group=fabric-ben-thanh" onClick={() => selectCustomerGroup('fabric-ben-thanh')} className={`nav-submenu-item ${customerGroup === 'fabric-ben-thanh' ? 'active' : ''}`}>Vải Bến Thành</Link>
+              <Link href="/product-analysis?group=fabric-q4" onClick={() => selectCustomerGroup('fabric-q4')} className={`nav-submenu-item ${customerGroup === 'fabric-q4' ? 'active' : ''}`}>Vải Quận 4</Link>
+            </div>
+          )}
 
         </nav>
 
