@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 type ProductRow = {
@@ -32,6 +33,7 @@ const formatNumber = (value: number) => new Intl.NumberFormat('vi-VN', { maximum
 const formatAiReply = (value: string) => value.replace(/^#{1,6}\s*/gm, '').replace(/\*\*(.*?)\*\*/g, '$1').replace(/^\s*[-*]\s+/gm, '• ').trim();
 
 export default function ProductAnalysisPage() {
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
@@ -46,11 +48,8 @@ export default function ProductAnalysisPage() {
   const [aiMode, setAiMode] = useState('');
   const [aiSources, setAiSources] = useState<Array<{ title: string; url: string }>>([]);
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('erp');
-  const [activeGroup, setActiveGroup] = useState<ProductGroupKey>(() => {
-    if (typeof window === 'undefined') return 'fabric-q4';
-    const group = new URLSearchParams(window.location.search).get('group');
-    return productGroups.some((item) => item.key === group) ? group as ProductGroupKey : 'fabric-q4';
-  });
+  const groupParam = searchParams.get('group');
+  const activeGroup: ProductGroupKey = productGroups.some((item) => item.key === groupParam) ? groupParam as ProductGroupKey : 'fabric-q4';
 
   useEffect(() => {
     const progressTimer = window.setInterval(() => {
@@ -80,19 +79,11 @@ export default function ProductAnalysisPage() {
   }, []);
 
   useEffect(() => {
-    const handleGroupChange = (event: Event) => {
-      const group = (event as CustomEvent<string>).detail;
-      if (productGroups.some((item) => item.key === group)) {
-        setActiveGroup(group as ProductGroupKey);
-        setCategory('all');
-        setAiReply('');
-        setAiMode('');
-        setAiSources([]);
-      }
-    };
-    window.addEventListener('product-group-change', handleGroupChange);
-    return () => window.removeEventListener('product-group-change', handleGroupChange);
-  }, []);
+    setCategory('all');
+    setAiReply('');
+    setAiMode('');
+    setAiSources([]);
+  }, [activeGroup]);
 
   const selectedGroup = productGroups.find((group) => group.key === activeGroup) ?? productGroups[2];
   const groupProducts = useMemo(() => products.filter((product) => product.businessGroup === selectedGroup.label), [products, selectedGroup.label]);

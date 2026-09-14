@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 type Segment = 'VIP – mua nhiều' | 'Khách tiềm năng' | 'Mua đều / ổn định' | 'Khách mới' | 'Giảm mua / ngừng mua';
@@ -38,6 +39,7 @@ const formatAiReply = (value: string) => value
 const normalizeGroupName = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, ' ').trim();
 
 export default function CustomerAnalysisPage() {
+  const searchParams = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const aiPromptRef = useRef<HTMLTextAreaElement>(null);
   const [aiReply, setAiReply] = useState('');
@@ -54,11 +56,8 @@ export default function CustomerAnalysisPage() {
   const [purchasedSearch, setPurchasedSearch] = useState('');
   const [q4Timeline, setQ4Timeline] = useState('all');
   const [purchasedTimeline, setPurchasedTimeline] = useState('all');
-  const [activeGroup, setActiveGroup] = useState<CustomerGroupKey>(() => {
-    if (typeof window === 'undefined') return 'fabric-q4';
-    const group = new URLSearchParams(window.location.search).get('group');
-    return customerGroups.some((item) => item.key === group) ? group as CustomerGroupKey : 'fabric-q4';
-  });
+  const groupParam = searchParams.get('group');
+  const activeGroup: CustomerGroupKey = customerGroups.some((item) => item.key === groupParam) ? groupParam as CustomerGroupKey : 'fabric-q4';
 
   async function loadCustomers() {
     setLoading(true);
@@ -89,18 +88,10 @@ export default function CustomerAnalysisPage() {
   }, []);
 
   useEffect(() => {
-    const handleGroupChange = (event: Event) => {
-      const group = (event as CustomEvent<string>).detail;
-      if (customerGroups.some((item) => item.key === group)) {
-        setActiveGroup(group as CustomerGroupKey);
-        setAiReply('');
-        setAiMode('');
-        setAiSources([]);
-      }
-    };
-    window.addEventListener('customer-group-change', handleGroupChange);
-    return () => window.removeEventListener('customer-group-change', handleGroupChange);
-  }, []);
+    setAiReply('');
+    setAiMode('');
+    setAiSources([]);
+  }, [activeGroup]);
 
   const selectedGroup = customerGroups.find((group) => group.key === activeGroup) ?? customerGroups[2];
   const groupCustomers = useMemo(() => customers.filter((customer) => normalizeGroupName(customer.company).includes(selectedGroup.match)), [customers, selectedGroup.match]);
