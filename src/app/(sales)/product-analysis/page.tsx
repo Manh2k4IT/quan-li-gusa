@@ -19,6 +19,7 @@ type ProductRow = {
 type SortKey = 'revenue' | 'soldQuantity' | 'orderCount' | 'stock';
 type ProductGroupKey = 'fashion-q4' | 'fabric-ben-thanh' | 'fabric-q4';
 type AnalysisMode = 'erp' | 'web+erp';
+type ErpConnectionState = 'checking' | 'connected' | 'disconnected';
 
 const productGroups: Array<{ key: ProductGroupKey; label: string }> = [
   { key: 'fashion-q4', label: 'Thời trang Quận 4' },
@@ -33,6 +34,8 @@ const formatAiReply = (value: string) => value.replace(/^#{1,6}\s*/gm, '').repla
 export default function ProductAnalysisPage() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [erpConnection, setErpConnection] = useState<ErpConnectionState>('checking');
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
@@ -50,14 +53,30 @@ export default function ProductAnalysisPage() {
   });
 
   useEffect(() => {
-    fetch('/api/product-analysis', { cache: 'no-store' })
-      .then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.message ?? 'Không thể tải dữ liệu sản phẩm.');
-        setProducts(Array.isArray(payload.products) ? payload.products : []);
+    const progressTimer = window.setInterval(() => {
+      setLoadProgress((current) => current < 90 ? Math.min(90, current + Math.max(1, Math.round((90 - current) / 5))) : current);
+    }, 700);
+    setLoadProgress(8);
+
+    Promise.all([
+      fetch('/api/erp-status', { cache: 'no-store' }).then(async (response) => ({ ok: response.ok, payload: await response.json().catch(() => null) })),
+      fetch('/api/product-analysis', { cache: 'no-store' }).then(async (response) => ({ ok: response.ok, payload: await response.json() })),
+    ])
+      .then(([erpResult, productResult]) => {
+        setErpConnection(erpResult.ok && erpResult.payload?.connected ? 'connected' : 'disconnected');
+        if (!productResult.ok) throw new Error(productResult.payload.message ?? 'Không thể tải dữ liệu sản phẩm.');
+        setProducts(Array.isArray(productResult.payload.products) ? productResult.payload.products : []);
+        setLoadProgress(100);
       })
-      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : 'Không thể tải dữ liệu sản phẩm.'))
-      .finally(() => setLoading(false));
+      .catch((loadError) => {
+        setErpConnection('disconnected');
+        setError(loadError instanceof Error ? loadError.message : 'Không thể tải dữ liệu sản phẩm.');
+      })
+      .finally(() => {
+        window.clearInterval(progressTimer);
+        window.setTimeout(() => setLoading(false), 250);
+      });
+    return () => window.clearInterval(progressTimer);
   }, []);
 
   useEffect(() => {
@@ -133,6 +152,20 @@ export default function ProductAnalysisPage() {
         </div>
         <Link href="/customer-analysis" className="ghost-btn">Về phân tích khách hàng</Link>
       </div>
+
+      <section className={`customer-sync-panel ${erpConnection}`} aria-live="polite">
+        <div className="customer-sync-header">
+          <div className="customer-erp-status">
+            <span className="customer-erp-dot" aria-hidden="true" />
+            <strong>{erpConnection === 'checking' ? 'Đang kiểm tra kết nối ERP' : erpConnection === 'connected' ? 'ERP đã kết nối' : 'ERP không kết nối'}</strong>
+          </div>
+          <span>{loading ? `${loadProgress}%` : `${groupProducts.length} sản phẩm ${selectedGroup.label} đã tải`}</span>
+        </div>
+        <div className="customer-load-track" role="progressbar" aria-label="Tiến trình tải dữ liệu sản phẩm" aria-valuemin={0} aria-valuemax={100} aria-valuenow={loading ? loadProgress : 100}>
+          <span style={{ width: `${loading ? loadProgress : 100}%` }} />
+        </div>
+        <small>{loading ? (loadProgress < 30 ? 'Đang xác thực nguồn ERP...' : loadProgress < 90 ? 'Đang đồng bộ sản phẩm, doanh thu và tồn kho từ ERP...' : 'Đang hoàn tất dữ liệu sản phẩm...') : erpConnection === 'connected' ? `Dữ liệu sản phẩm ${selectedGroup.label} được đồng bộ từ ERP.` : 'Không thể đồng bộ dữ liệu sản phẩm từ ERP.'}</small>
+      </section>
 
       <section className="product-analysis-metrics">
         <div><span>Sản phẩm ERP</span><strong>{metrics.products.toLocaleString('vi-VN')}</strong></div>
