@@ -5,25 +5,6 @@ import { getErpProductAnalysis } from '@/lib/erp';
 
 type ProductInput = { sku?: string; name?: string; category?: string; soldQuantity?: number; orderCount?: number; revenue?: number; stock?: number };
 
-function buildProductFallback(products: ProductInput[], businessGroup: string) {
-  const rows = products.map((product) => ({
-    sku: String(product.sku ?? ''),
-    name: String(product.name ?? product.sku ?? 'Sản phẩm'),
-    revenue: Number(product.revenue ?? 0),
-    soldQuantity: Number(product.soldQuantity ?? 0),
-    orderCount: Number(product.orderCount ?? 0),
-    stock: Number(product.stock ?? 0),
-  }));
-  const topRevenue = [...rows].sort((first, second) => second.revenue - first.revenue).slice(0, 5);
-  const slowMoving = rows.filter((product) => product.stock > 0).sort((first, second) => first.soldQuantity - second.soldQuantity || second.stock - first.stock).slice(0, 5);
-  const stockRisk = rows.filter((product) => product.soldQuantity > 0 && product.stock <= 0).sort((first, second) => second.soldQuantity - first.soldQuantity).slice(0, 5);
-  const totalRevenue = rows.reduce((sum, product) => sum + product.revenue, 0);
-  const format = (value: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(value);
-  const list = (items: typeof rows, detail: (item: typeof rows[number]) => string) => items.length ? items.map((item, index) => `${index + 1}. ${item.name} (${item.sku}): ${detail(item)}`).join('\n') : 'Chưa có sản phẩm phù hợp.';
-
-  return `Phân tích tự động ${businessGroup}\n\nTổng quan\n• ${format(rows.length)} sản phẩm trong phạm vi phân tích\n• Tổng doanh thu: ${format(totalRevenue)} VNĐ\n\nSản phẩm doanh thu cao\n${list(topRevenue, (item) => `${format(item.revenue)} VNĐ, ${format(item.soldQuantity)} đã bán`)}\n\nSản phẩm bán chậm cần theo dõi\n${list(slowMoving, (item) => `${format(item.soldQuantity)} đã bán, tồn ${format(item.stock)}`)}\n\nSản phẩm có nguy cơ thiếu tồn\n${list(stockRisk, (item) => `${format(item.soldQuantity)} đã bán, tồn ${format(item.stock)}`)}\n\nĐề xuất\n• Ưu tiên bổ sung tồn cho sản phẩm đang bán nhưng tồn bằng hoặc dưới 0.\n• Giảm nhập và đẩy chương trình bán cho sản phẩm còn tồn nhưng bán chậm.\n• Duy trì nguồn hàng cho nhóm sản phẩm doanh thu cao.`;
-}
-
 export async function GET() {
   const session = getSession(await cookies());
   if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -48,7 +29,7 @@ export async function POST(request: Request) {
     const businessGroup = String(body.businessGroup ?? 'nhóm đang chọn').trim();
     const apiKey = process.env.OPENAI_API_KEY;
 
-    if (!apiKey) return NextResponse.json({ reply: buildProductFallback(products, businessGroup), provider: 'erp-fallback' });
+    if (!apiKey) return NextResponse.json({ message: 'Chưa cấu hình OPENAI_API_KEY trên server.' }, { status: 503 });
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -65,8 +46,15 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       const errorPayload = await response.json().catch(() => null) as { error?: { code?: string; message?: string } } | null;
-      console.error('Product AI provider error:', response.status, errorPayload?.error?.code, errorPayload?.error?.message);
-      return NextResponse.json({ reply: buildProductFallback(products, businessGroup), provider: 'erp-fallback' });
+      const errorCode = errorPayload?.error?.code;
+      const errorMessage = errorPayload?.error?.message ?? '';
+      console.error('Product AI provider error:', response.status, errorCode, errorMessage);
+      const message = response.status === 401
+        ? 'OPENAI_API_KEY trên server không hợp lệ hoặc đã bị thu hồi. Hãy cập nhật key mới trên Render.'
+        : response.status === 429
+          ? 'OpenAI đang hết quota hoặc vượt giới hạn tốc độ. Hãy kiểm tra Billing và Limits.'
+          : `OpenAI trả lỗi ${response.status}${errorCode ? ` (${errorCode})` : ''}. ${errorMessage}`;
+      return NextResponse.json({ message }, { status: response.status });
     }
 
     const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };

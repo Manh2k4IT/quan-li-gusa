@@ -106,7 +106,7 @@ export default function ProductAnalysisPage() {
       });
       window.clearTimeout(timeout);
       const payload = await response.json();
-      setAiReply(formatAiReply(payload.reply ?? payload.message ?? 'AI chưa trả về kết quả.'));
+      setAiReply(formatAiReply(response.ok ? (payload.reply ?? 'AI chưa trả về kết quả.') : (payload.message ?? 'Không thể kết nối AI.')));
     } catch (requestError) {
       setAiReply(requestError instanceof DOMException && requestError.name === 'AbortError' ? 'AI phản hồi quá lâu. Hãy thử lại.' : 'Không thể kết nối AI lúc này.');
     } finally {
