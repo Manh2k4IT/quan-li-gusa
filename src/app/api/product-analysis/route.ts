@@ -48,16 +48,13 @@ export async function POST(request: Request) {
     const products: ProductInput[] = Array.isArray(body.products) ? body.products.slice(0, 300) : [];
     const prompt = String(body.prompt ?? 'Phân tích hiệu quả sản phẩm và đề xuất hành động bán hàng, tồn kho.').trim();
     const businessGroup = String(body.businessGroup ?? 'nhóm đang chọn').trim();
+    const analysisMode = body.analysisMode === 'web+erp' ? 'web+erp' : 'erp';
     const apiKey = process.env.OPENAI_API_KEY;
-    const normalizedPrompt = prompt.toLowerCase();
-    const needsMarketData = /thị trường|xu hướng|đối thủ|giá thị trường|mới nhất|hiện nay|ngành thời trang|ngành vải|người tiêu dùng|mạng xã hội|trend|dự báo nhu cầu/.test(normalizedPrompt);
-    const needsProductData = /gusa|nội bộ|erp|doanh thu|bán|tồn|kho|đơn|mã|sku|chi nhánh|sản phẩm nào|hàng nào|của chúng ta/.test(normalizedPrompt);
 
     if (!apiKey) return NextResponse.json({ message: 'Chưa cấu hình OPENAI_API_KEY trên server.' }, { status: 503 });
 
-    if (needsMarketData) {
-      const mode = needsProductData ? 'web+erp' : 'web';
-      const erpContext = needsProductData ? `\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU SẢN PHẨM ERP GUSA:\n${JSON.stringify(products)}` : '';
+    if (analysisMode === 'web+erp') {
+      const erpContext = `\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU SẢN PHẨM ERP GUSA:\n${JSON.stringify(products)}`;
       const webResponse = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -78,7 +75,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: `Không thể tìm kiếm thị trường (${webResponse.status}). ${webPayload?.error?.message ?? ''}` }, { status: webResponse.status });
       }
 
-      return NextResponse.json({ reply: getResponseText(webPayload?.output) || 'AI chưa đưa ra phân tích.', provider: 'openai-web', mode, sources: getResponseSources(webPayload?.output) });
+      return NextResponse.json({ reply: getResponseText(webPayload?.output) || 'AI chưa đưa ra phân tích.', provider: 'openai-web', mode: 'web+erp', sources: getResponseSources(webPayload?.output) });
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -88,8 +85,8 @@ export async function POST(request: Request) {
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         temperature: 0.2,
         messages: [
-          { role: 'system', content: 'Bạn là trợ lý phân tích sản phẩm của GUSA. Trả lời hoàn toàn bằng tiếng Việt. Với lời chào hoặc hội thoại thông thường, hãy trả lời tự nhiên, ngắn gọn và không tự ý phân tích dữ liệu. Chỉ phân tích số liệu khi người dùng yêu cầu; khi phân tích phải dựa đúng dữ liệu ERP được cung cấp và không bịa số.' },
-          { role: 'user', content: needsProductData ? `${prompt}\n\nCHI NHÁNH: ${businessGroup}\nDỮ LIỆU SẢN PHẨM ERP:\n${JSON.stringify(products)}` : prompt },
+          { role: 'system', content: 'Bạn là trợ lý phân tích sản phẩm nội bộ của GUSA. Trả lời hoàn toàn bằng tiếng Việt và chỉ dựa trên dữ liệu ERP được cung cấp. Không sử dụng hay suy đoán dữ liệu thị trường bên ngoài, không bịa số. Nếu dữ liệu chưa đủ, phải nói rõ.' },
+          { role: 'user', content: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU SẢN PHẨM ERP GUSA:\n${JSON.stringify(products)}` },
         ],
       }),
     });
@@ -108,7 +105,7 @@ export async function POST(request: Request) {
     }
 
     const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-    return NextResponse.json({ reply: payload.choices?.[0]?.message?.content?.trim() ?? 'AI chưa đưa ra phân tích.', provider: 'openai', mode: needsProductData ? 'erp' : 'chat', sources: [] });
+    return NextResponse.json({ reply: payload.choices?.[0]?.message?.content?.trim() ?? 'AI chưa đưa ra phân tích.', provider: 'openai', mode: 'erp', sources: [] });
   } catch (error) {
     console.error('Product AI analysis error:', error);
     return NextResponse.json({ message: 'Không thể phân tích sản phẩm lúc này.' }, { status: 500 });
