@@ -1376,7 +1376,7 @@ export type ErpProductAnalysisRow = {
   reorderPoint: number;
 };
 
-export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> {
+export async function getErpProductAnalysis(fromDate = '2020-01-01', toDate = new Date().toISOString().slice(0, 10)): Promise<ErpProductAnalysisRow[]> {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
   const fields = (value: string[]) => encodeURIComponent(JSON.stringify(value));
   const company = await getErpCompanyName();
@@ -1481,8 +1481,8 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
         report_name: 'Item-wise Sales Register',
         filters: JSON.stringify({
           company,
-          from_date: '2020-01-01',
-          to_date: new Date().toISOString().slice(0, 10),
+          from_date: fromDate,
+          to_date: toDate,
         }),
         ignore_prepared_report: 'true',
       }),

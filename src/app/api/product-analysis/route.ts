@@ -37,6 +37,14 @@ function getBusinessScope(businessGroup: string) {
   return 'Đây là chi nhánh BÁN VẢI LINEN QUẬN 4. Chỉ nghiên cứu thị trường vải linen theo mét, chất liệu, màu sắc, họa tiết, giá vải, khách may mặc và kênh bán sỉ/lẻ vải. Không đề xuất bán quần áo hoặc sản phẩm may mặc hoàn chỉnh như thể chúng là hàng của chi nhánh.';
 }
 
+function getDateRange(prompt: string) {
+  const dates = [...prompt.matchAll(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b/g)].map((match) => {
+    const [, day, month, year] = match;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  });
+  return dates.length >= 2 ? { fromDate: dates[0], toDate: dates[1] } : null;
+}
+
 function buildProductErpSummary(products: ProductInput[]) {
   const rows = products.map((product) => ({
     sku: String(product.sku ?? ''),
@@ -92,12 +100,15 @@ export async function POST(request: Request) {
     const analysisMode = body.analysisMode === 'web+erp' ? 'web+erp' : 'erp';
     const apiKey = process.env.OPENAI_API_KEY;
     const businessScope = getBusinessScope(businessGroup);
+    const dateRange = getDateRange(prompt);
+    const periodProducts = dateRange ? (await getErpProductAnalysis(dateRange.fromDate, dateRange.toDate)).filter((product) => product.businessGroup === businessGroup).slice(0, 300) : products;
 
     if (!apiKey) return NextResponse.json({ message: 'Chưa cấu hình OPENAI_API_KEY trên server.' }, { status: 503 });
 
     if (analysisMode === 'web+erp') {
-      const erpSummary = buildProductErpSummary(products);
-      const erpContext = `\n\nCHI NHÁNH GUSA: ${businessGroup}\nTÓM TẮT KPI ERP ĐÃ TÍNH:\n${JSON.stringify(erpSummary)}\nDỮ LIỆU SẢN PHẨM ERP CHI TIẾT:\n${JSON.stringify(products)}`;
+      const erpSummary = buildProductErpSummary(periodProducts);
+      const periodLabel = dateRange ? `${dateRange.fromDate} đến ${dateRange.toDate}` : 'toàn bộ dữ liệu hiện có';
+      const erpContext = `\n\nCHI NHÁNH GUSA: ${businessGroup}\nKỲ PHÂN TÍCH ERP: ${periodLabel}\nTÓM TẮT KPI ERP ĐÃ TÍNH:\n${JSON.stringify(erpSummary)}\nDỮ LIỆU SẢN PHẨM ERP CHI TIẾT:\n${JSON.stringify(periodProducts)}`;
       const webResponse = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -129,7 +140,7 @@ export async function POST(request: Request) {
         temperature: 0.2,
         messages: [
           { role: 'system', content: `Bạn là trợ lý phân tích sản phẩm nội bộ của GUSA. ${businessScope} Trả lời hoàn toàn bằng tiếng Việt và chỉ dựa trên dữ liệu ERP được cung cấp. Không lấy sản phẩm chi nhánh khác, không sử dụng hay suy đoán dữ liệu thị trường bên ngoài, không bịa số. Nếu dữ liệu chưa đủ, phải nói rõ.` },
-          { role: 'user', content: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU SẢN PHẨM ERP GUSA:\n${JSON.stringify(products)}` },
+          { role: 'user', content: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nKỲ PHÂN TÍCH ERP: ${dateRange ? `${dateRange.fromDate} đến ${dateRange.toDate}` : 'toàn bộ dữ liệu hiện có'}\nDỮ LIỆU SẢN PHẨM ERP GUSA:\n${JSON.stringify(periodProducts)}` },
         ],
       }),
     });
