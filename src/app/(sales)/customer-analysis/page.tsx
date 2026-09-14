@@ -19,6 +19,7 @@ type Customer = {
 };
 type ErpConnectionState = 'checking' | 'connected' | 'disconnected';
 type CustomerGroupKey = 'fashion-q4' | 'fabric-ben-thanh' | 'fabric-q4';
+type AnalysisMode = 'erp' | 'web+erp';
 
 const customerGroups: Array<{ key: CustomerGroupKey; label: string; match: string }> = [
   { key: 'fashion-q4', label: 'Thời trang Quận 4', match: 'thoi trang quan 4' },
@@ -44,6 +45,9 @@ export default function CustomerAnalysisPage() {
   const [loadProgress, setLoadProgress] = useState(0);
   const [erpConnection, setErpConnection] = useState<ErpConnectionState>('checking');
   const [aiLoading, setAiLoading] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('erp');
+  const [aiMode, setAiMode] = useState('');
+  const [aiSources, setAiSources] = useState<Array<{ title: string; url: string }>>([]);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState('');
   const [q4Search, setQ4Search] = useState('');
@@ -90,6 +94,8 @@ export default function CustomerAnalysisPage() {
       if (customerGroups.some((item) => item.key === group)) {
         setActiveGroup(group as CustomerGroupKey);
         setAiReply('');
+        setAiMode('');
+        setAiSources([]);
       }
     };
     window.addEventListener('customer-group-change', handleGroupChange);
@@ -113,6 +119,7 @@ export default function CustomerAnalysisPage() {
   const purchasedCustomers = useMemo(() => filterBySearch(filterByTimeline(groupCustomers.filter((customer) => customer.orderCount > 0), purchasedTimeline), purchasedSearch), [groupCustomers, purchasedSearch, purchasedTimeline]);
   async function analyzeWithAi() {
     setAiLoading(true);
+    setAiSources([]);
     try {
       const compactCustomers = visibleCustomers
         .filter((customer) => customer.orderCount > 0 || customer.segment === 'Giảm mua / ngừng mua' || customer.segment === 'Khách tiềm năng')
@@ -122,10 +129,12 @@ export default function CustomerAnalysisPage() {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 30000);
       const prompt = aiPromptRef.current?.value.trim() || 'Hãy phân tích nhóm khách hàng đang giảm mua hoặc ngừng mua trước, sau đó đề xuất cách Sale tiếp cận từng nhóm.';
-      const response = await fetch('/api/customer-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, customers: compactCustomers }), signal: controller.signal });
+      const response = await fetch('/api/customer-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, customers: compactCustomers, businessGroup: selectedGroup.label, analysisMode }), signal: controller.signal });
       window.clearTimeout(timeout);
       const payload = await response.json();
-      setAiReply(formatAiReply(payload.reply ?? 'AI chưa trả về kết quả.'));
+      setAiReply(formatAiReply(response.ok ? (payload.reply ?? 'AI chưa trả về kết quả.') : (payload.message ?? payload.reply ?? 'Không thể kết nối AI.')));
+      setAiMode(response.ok ? String(payload.mode ?? '') : '');
+      setAiSources(response.ok && Array.isArray(payload.sources) ? payload.sources : []);
     } catch (error) {
       setAiReply(error instanceof DOMException && error.name === 'AbortError' ? 'AI phản hồi quá lâu. Hãy thu hẹp nhóm khách hoặc thử lại.' : 'Không thể kết nối AI lúc này.');
     } finally {
@@ -247,11 +256,16 @@ export default function CustomerAnalysisPage() {
           <div className="customer-ai-workspace">
             <div className="customer-ai-input-column">
               <span className="customer-ai-column-label">Yêu cầu phân tích</span>
+              <div className="product-analysis-mode" role="group" aria-label="Chọn nguồn phân tích khách hàng">
+                <button type="button" className={analysisMode === 'erp' ? 'active' : ''} onClick={() => { setAnalysisMode('erp'); setAiReply(''); setAiSources([]); }}>Nội bộ GUSA</button>
+                <button type="button" className={analysisMode === 'web+erp' ? 'active' : ''} onClick={() => { setAnalysisMode('web+erp'); setAiReply(''); setAiSources([]); }}>ERP + thị trường</button>
+              </div>
+              <small className="product-analysis-mode-note">{analysisMode === 'erp' ? 'AI chỉ dùng hồ sơ khách và lịch sử mua hàng trong ERP GUSA.' : 'AI tìm xu hướng thị trường rồi đối chiếu với dữ liệu khách hàng ERP.'}</small>
               <textarea ref={aiPromptRef} defaultValue="Hãy phân tích nhóm khách hàng đang giảm mua hoặc ngừng mua trước, sau đó đề xuất cách Sale tiếp cận từng nhóm." placeholder="Bạn muốn AI phân tích nhóm khách nào?" />
               <button className="primary-btn customer-ai-button" onClick={analyzeWithAi} disabled={aiLoading || loading}>{aiLoading ? 'Đang phân tích...' : 'Phân tích khách hàng'}</button>
             </div>
             <div className="customer-ai-result-column">
-              <span className="customer-ai-column-label">Kết quả trả lời</span>
+              <div className="product-ai-result-heading"><span className="customer-ai-column-label">Kết quả trả lời</span>{aiMode && <span className="product-ai-mode">{aiMode === 'web+erp' ? 'Web + ERP' : 'ERP'}</span>}</div>
               <div className={`customer-ai-reply ${!aiReply ? 'is-empty' : ''}`}>
                 {aiLoading ? (
                   <div className="customer-ai-loading" role="status" aria-live="polite">
@@ -263,6 +277,7 @@ export default function CustomerAnalysisPage() {
                   </div>
                 ) : aiReply ? aiReply : 'Kết quả phân tích sẽ hiển thị ở đây.'}
               </div>
+              {!!aiSources.length && <div className="product-ai-sources"><strong>Nguồn tham khảo</strong>{aiSources.map((source) => <a key={source.url} href={source.url} target="_blank" rel="noreferrer">{source.title}</a>)}</div>}
             </div>
           </div>
       </section>

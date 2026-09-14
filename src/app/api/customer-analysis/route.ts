@@ -5,6 +5,20 @@ import { prisma } from '@/lib/prisma';
 import { getErpCustomers, getErpSalesInvoices, getErpSalesOrders } from '@/lib/erp';
 
 export type CustomerSegment = 'VIP – mua nhiều' | 'Khách tiềm năng' | 'Mua đều / ổn định' | 'Khách mới' | 'Giảm mua / ngừng mua';
+type WebCitation = { type?: string; url?: string; title?: string };
+type ResponseOutput = { type?: string; content?: Array<{ type?: string; text?: string; annotations?: WebCitation[] }> };
+
+function getResponseText(output: ResponseOutput[] | undefined) {
+  return (output ?? []).flatMap((item) => item.content ?? []).filter((content) => content.type === 'output_text').map((content) => content.text ?? '').join('\n').trim();
+}
+
+function getResponseSources(output: ResponseOutput[] | undefined) {
+  const sources = new Map<string, { title: string; url: string }>();
+  for (const item of output ?? []) for (const content of item.content ?? []) for (const annotation of content.annotations ?? []) {
+    if (annotation.type === 'url_citation' && annotation.url) sources.set(annotation.url, { title: annotation.title || annotation.url, url: annotation.url });
+  }
+  return [...sources.values()];
+}
 
 function normalizeStatus(status: string) {
   return status.toLowerCase();
@@ -290,10 +304,31 @@ export async function POST(request: Request) {
     const body = await request.json();
     const customers = Array.isArray(body.customers) ? body.customers : await getAnalysis();
     const prompt = String(body.prompt ?? 'Phân tích toàn bộ nhóm khách hàng và đề xuất hành động bán hàng.').trim();
+    const businessGroup = String(body.businessGroup ?? 'nhóm đang chọn').trim();
+    const analysisMode = body.analysisMode === 'web+erp' ? 'web+erp' : 'erp';
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json({ reply: 'Chưa cấu hình OPENAI_API_KEY. Hãy dùng các nhóm phân loại tự động và bổ sung API key để bật phân tích AI.', provider: 'fallback' });
+    }
+
+    if (analysisMode === 'web+erp') {
+      const webResponse = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: process.env.OPENAI_WEB_MODEL || 'gpt-4.1-mini',
+          instructions: 'Bạn là chuyên gia CRM và chiến lược marketing của GUSA tại Việt Nam. Trả lời hoàn toàn bằng tiếng Việt. Bắt buộc tìm web để lấy xu hướng thị trường mới nhất, sau đó đối chiếu với dữ liệu khách hàng ERP. Phân biệt rõ thông tin thị trường và dữ liệu nội bộ; không bịa số. Nêu nguồn web rõ ràng.',
+          input: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU KHÁCH HÀNG ERP GUSA:\n${JSON.stringify(customers)}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Ưu tiên thị trường Việt Nam và nguồn mới, đáng tin cậy.`,
+          tools: [{ type: 'web_search', search_context_size: 'medium', user_location: { type: 'approximate', country: 'VN', city: 'Ho Chi Minh City', timezone: 'Asia/Ho_Chi_Minh' } }],
+          tool_choice: 'required',
+          include: ['web_search_call.action.sources'],
+          max_output_tokens: 1400,
+        }),
+      });
+      const webPayload = await webResponse.json().catch(() => null) as { output?: ResponseOutput[]; error?: { code?: string; message?: string } } | null;
+      if (!webResponse.ok) return NextResponse.json({ message: `Không thể tìm kiếm thị trường (${webResponse.status}). ${webPayload?.error?.message ?? ''}` }, { status: webResponse.status });
+      return NextResponse.json({ reply: getResponseText(webPayload?.output) || 'AI chưa đưa ra phân tích.', provider: 'openai-web', mode: 'web+erp', sources: getResponseSources(webPayload?.output) });
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -303,8 +338,8 @@ export async function POST(request: Request) {
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         temperature: 0.2,
         messages: [
-          { role: 'system', content: 'Bạn là chuyên gia CRM của GUSA. Trả lời tiếng Việt, ngắn gọn, dựa đúng dữ liệu, không bịa số. Phân tích theo nhóm khách, dấu hiệu, ưu tiên và hành động Sale cụ thể.' },
-          { role: 'user', content: `${prompt}\n\nDỮ LIỆU KHÁCH HÀNG:\n${JSON.stringify(customers)}` },
+          { role: 'system', content: 'Bạn là chuyên gia CRM nội bộ của GUSA. Trả lời tiếng Việt, ngắn gọn và chỉ dựa trên dữ liệu ERP được cung cấp. Không sử dụng hay suy đoán dữ liệu thị trường bên ngoài, không bịa số. Phân tích theo nhóm khách, dấu hiệu, ưu tiên và hành động Sale cụ thể.' },
+          { role: 'user', content: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU KHÁCH HÀNG ERP:\n${JSON.stringify(customers)}` },
         ],
       }),
     });
@@ -322,7 +357,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ reply, provider: 'fallback' });
     }
     const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-    return NextResponse.json({ reply: payload.choices?.[0]?.message?.content?.trim() ?? 'AI chưa đưa ra phân tích.', provider: 'openai' });
+    return NextResponse.json({ reply: payload.choices?.[0]?.message?.content?.trim() ?? 'AI chưa đưa ra phân tích.', provider: 'openai', mode: 'erp', sources: [] });
   } catch (error) {
     console.error('Customer AI analysis error:', error);
     return NextResponse.json({ message: 'Không thể phân tích khách hàng lúc này.' }, { status: 500 });
