@@ -17,6 +17,7 @@ type Customer = {
   daysSinceLastOrder: number | null;
   segment: Segment;
 };
+type ErpConnectionState = 'checking' | 'connected' | 'disconnected';
 
 const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('vi-VN').format(new Date(value)) : 'Chưa có đơn';
@@ -32,6 +33,8 @@ export default function CustomerAnalysisPage() {
   const aiPromptRef = useRef<HTMLTextAreaElement>(null);
   const [aiReply, setAiReply] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [erpConnection, setErpConnection] = useState<ErpConnectionState>('checking');
   const [aiLoading, setAiLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState('');
@@ -42,12 +45,25 @@ export default function CustomerAnalysisPage() {
 
   async function loadCustomers() {
     setLoading(true);
+    setLoadProgress(8);
+    setErpConnection('checking');
+    const progressTimer = window.setInterval(() => {
+      setLoadProgress((current) => current < 88 ? Math.min(88, current + Math.max(1, Math.round((88 - current) / 5))) : current);
+    }, 700);
     try {
+      const erpResponse = await fetch('/api/erp-status', { cache: 'no-store' });
+      const erpPayload = await erpResponse.json().catch(() => null);
+      setErpConnection(erpResponse.ok && erpPayload?.connected ? 'connected' : 'disconnected');
+      setLoadProgress(28);
       const response = await fetch('/api/customer-analysis');
       const payload = await response.json();
       setCustomers(payload.customers ?? []);
+      setLoadProgress(100);
+    } catch {
+      setErpConnection('disconnected');
     } finally {
-      setLoading(false);
+      window.clearInterval(progressTimer);
+      window.setTimeout(() => setLoading(false), 250);
     }
   }
 
@@ -134,6 +150,20 @@ export default function CustomerAnalysisPage() {
       </div>
 
       {importMessage && <div className="customer-import-message">{importMessage}</div>}
+
+      <section className={`customer-sync-panel ${erpConnection}`} aria-live="polite">
+        <div className="customer-sync-header">
+          <div className="customer-erp-status">
+            <span className="customer-erp-dot" aria-hidden="true" />
+            <strong>{erpConnection === 'checking' ? 'Đang kiểm tra kết nối ERP' : erpConnection === 'connected' ? 'ERP đã kết nối' : 'ERP không kết nối'}</strong>
+          </div>
+          <span>{loading ? `${loadProgress}%` : `${customers.length} khách đã tải`}</span>
+        </div>
+        <div className="customer-load-track" role="progressbar" aria-label="Tiến trình tải dữ liệu khách hàng" aria-valuemin={0} aria-valuemax={100} aria-valuenow={loading ? loadProgress : 100}>
+          <span style={{ width: `${loading ? loadProgress : 100}%` }} />
+        </div>
+        <small>{loading ? (loadProgress < 28 ? 'Đang xác thực nguồn dữ liệu...' : loadProgress < 88 ? 'Đang đồng bộ khách hàng và hóa đơn từ ERP...' : 'Đang hoàn tất danh sách...') : erpConnection === 'connected' ? 'Dữ liệu khách hàng được đồng bộ từ ERP.' : 'Đang hiển thị dữ liệu đã lưu gần nhất.'}</small>
+      </section>
 
       <section className="customer-dual-table-grid">
         {[
