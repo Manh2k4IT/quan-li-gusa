@@ -39,6 +39,8 @@ export default function ProductAnalysisPage() {
   const aiPromptRef = useRef<HTMLTextAreaElement>(null);
   const [aiReply, setAiReply] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiMode, setAiMode] = useState('');
+  const [aiSources, setAiSources] = useState<Array<{ title: string; url: string }>>([]);
   const [activeGroup, setActiveGroup] = useState<ProductGroupKey>(() => {
     if (typeof window === 'undefined') return 'fabric-q4';
     const group = new URLSearchParams(window.location.search).get('group');
@@ -63,6 +65,8 @@ export default function ProductAnalysisPage() {
         setActiveGroup(group as ProductGroupKey);
         setCategory('all');
         setAiReply('');
+        setAiMode('');
+        setAiSources([]);
       }
     };
     window.addEventListener('product-group-change', handleGroupChange);
@@ -90,6 +94,7 @@ export default function ProductAnalysisPage() {
   async function analyzeWithAi() {
     if (aiLoading || loading || !groupProducts.length) return;
     setAiLoading(true);
+    setAiSources([]);
     try {
       const compactProducts = [...groupProducts]
         .sort((first, second) => second.revenue - first.revenue)
@@ -107,6 +112,8 @@ export default function ProductAnalysisPage() {
       window.clearTimeout(timeout);
       const payload = await response.json();
       setAiReply(formatAiReply(response.ok ? (payload.reply ?? 'AI chưa trả về kết quả.') : (payload.message ?? 'Không thể kết nối AI.')));
+      setAiMode(response.ok ? String(payload.mode ?? '') : '');
+      setAiSources(response.ok && Array.isArray(payload.sources) ? payload.sources : []);
     } catch (requestError) {
       setAiReply(requestError instanceof DOMException && requestError.name === 'AbortError' ? 'AI phản hồi quá lâu. Hãy thử lại.' : 'Không thể kết nối AI lúc này.');
     } finally {
@@ -186,10 +193,11 @@ export default function ProductAnalysisPage() {
             <button className="primary-btn customer-ai-button" onClick={analyzeWithAi} disabled={aiLoading || loading || !groupProducts.length}>{aiLoading ? 'Đang phân tích...' : 'Phân tích sản phẩm'}</button>
           </div>
           <div className="customer-ai-result-column">
-            <span className="customer-ai-column-label">Kết quả trả lời</span>
+            <div className="product-ai-result-heading"><span className="customer-ai-column-label">Kết quả trả lời</span>{aiMode && <span className="product-ai-mode">{aiMode === 'web+erp' ? 'Web + ERP' : aiMode === 'web' ? 'Web' : aiMode === 'erp' ? 'ERP' : 'Hội thoại'}</span>}</div>
             <div className={`customer-ai-reply ${!aiReply ? 'is-empty' : ''}`}>
               {aiLoading ? <div className="customer-ai-loading" role="status" aria-live="polite"><span className="customer-ai-spinner" aria-hidden="true" /><div><strong>Đang phân tích dữ liệu sản phẩm...</strong><small>AI đang đọc doanh thu, lượng bán và tồn kho ERP.</small></div></div> : aiReply || 'Kết quả phân tích sản phẩm sẽ hiển thị ở đây.'}
             </div>
+            {!!aiSources.length && <div className="product-ai-sources"><strong>Nguồn tham khảo</strong>{aiSources.map((source) => <a key={source.url} href={source.url} target="_blank" rel="noreferrer">{source.title}</a>)}</div>}
           </div>
         </div>
       </section>

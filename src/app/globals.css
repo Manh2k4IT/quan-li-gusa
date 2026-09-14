@@ -1676,6 +1676,48 @@ button {
   margin-top: 0;
 }
 
+.product-ai-result-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.product-ai-mode {
+  padding: 4px 7px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.08);
+  color: #7dd3fc;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.product-ai-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 150px;
+  margin-top: 10px;
+  padding: 11px 12px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(7, 15, 29, 0.55);
+}
+
+.product-ai-sources strong {
+  color: var(--text);
+  font-size: 0.76rem;
+}
+
+.product-ai-sources a {
+  color: #7dd3fc;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .product-analysis-loading {
   display: flex;
   align-items: center;
