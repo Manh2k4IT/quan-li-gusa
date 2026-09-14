@@ -8,6 +8,8 @@ export type CustomerSegment = 'VIP – mua nhiều' | 'Khách tiềm năng' | 'M
 type WebCitation = { type?: string; url?: string; title?: string };
 type ResponseOutput = { type?: string; content?: Array<{ type?: string; text?: string; annotations?: WebCitation[] }> };
 
+type CustomerAnalysisInput = { name?: string; company?: string; status?: string; orderCount?: number; totalSpent?: number; lastOrderAt?: string | null; daysSinceLastOrder?: number | null; segment?: string };
+
 function getResponseText(output: ResponseOutput[] | undefined) {
   return (output ?? []).flatMap((item) => item.content ?? []).filter((content) => content.type === 'output_text').map((content) => content.text ?? '').join('\n').trim();
 }
@@ -18,6 +20,31 @@ function getResponseSources(output: ResponseOutput[] | undefined) {
     if (annotation.type === 'url_citation' && annotation.url) sources.set(annotation.url, { title: annotation.title || annotation.url, url: annotation.url });
   }
   return [...sources.values()];
+}
+
+function buildCustomerErpSummary(customers: CustomerAnalysisInput[]) {
+  const rows = customers.map((customer) => ({
+    name: String(customer.name ?? 'Chưa đặt tên'),
+    company: String(customer.company ?? 'Chưa phân loại'),
+    status: String(customer.status ?? ''),
+    orderCount: Number(customer.orderCount ?? 0),
+    totalSpent: Number(customer.totalSpent ?? 0),
+    daysSinceLastOrder: customer.daysSinceLastOrder === null || customer.daysSinceLastOrder === undefined ? null : Number(customer.daysSinceLastOrder),
+    segment: String(customer.segment ?? 'Chưa phân loại'),
+  }));
+  const segmentCounts = rows.reduce<Record<string, number>>((counts, customer) => ({ ...counts, [customer.segment]: (counts[customer.segment] ?? 0) + 1 }), {});
+  return {
+    customerCount: rows.length,
+    customersWithOrders: rows.filter((customer) => customer.orderCount > 0).length,
+    customersWithoutOrders: rows.filter((customer) => customer.orderCount === 0).length,
+    totalRevenue: rows.reduce((sum, customer) => sum + customer.totalSpent, 0),
+    totalOrders: rows.reduce((sum, customer) => sum + customer.orderCount, 0),
+    segmentCounts,
+    inactiveOver90Days: rows.filter((customer) => customer.daysSinceLastOrder !== null && customer.daysSinceLastOrder > 90).length,
+    inactiveOver180Days: rows.filter((customer) => customer.daysSinceLastOrder !== null && customer.daysSinceLastOrder > 180).length,
+    topCustomers: [...rows].sort((first, second) => second.totalSpent - first.totalSpent).slice(0, 10),
+    atRiskCustomers: rows.filter((customer) => customer.daysSinceLastOrder !== null && customer.daysSinceLastOrder > 90).sort((first, second) => (second.totalSpent || 0) - (first.totalSpent || 0)).slice(0, 15),
+  };
 }
 
 function normalizeStatus(status: string) {
@@ -302,7 +329,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const customers = Array.isArray(body.customers) ? body.customers : await getAnalysis();
+    const customers: CustomerAnalysisInput[] = Array.isArray(body.customers) ? body.customers : await getAnalysis();
     const prompt = String(body.prompt ?? 'Phân tích toàn bộ nhóm khách hàng và đề xuất hành động bán hàng.').trim();
     const businessGroup = String(body.businessGroup ?? 'nhóm đang chọn').trim();
     const analysisMode = body.analysisMode === 'web+erp' ? 'web+erp' : 'erp';
@@ -313,13 +340,14 @@ export async function POST(request: Request) {
     }
 
     if (analysisMode === 'web+erp') {
+      const erpSummary = buildCustomerErpSummary(customers);
       const webResponse = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: process.env.OPENAI_WEB_MODEL || 'gpt-4.1-mini',
-          instructions: 'Bạn là chuyên gia CRM và chiến lược marketing của GUSA tại Việt Nam. Trả lời hoàn toàn bằng tiếng Việt. Bắt buộc nghiên cứu nhiều nguồn web độc lập, ưu tiên ít nhất 3 nguồn mới và đáng tin cậy khi có thể. Không trả về một danh sách đường dẫn thay cho câu trả lời. Hãy tổng hợp các nguồn thành nhận định thị trường, đối chiếu với dữ liệu khách hàng ERP, xác định phân khúc/cơ hội/rủi ro và đề xuất chiến lược cụ thể. Phân biệt rõ dữ liệu thị trường và dữ liệu nội bộ; không bịa số. Nguồn chỉ dùng để kiểm chứng các kết luận.',
-          input: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU KHÁCH HÀNG ERP GUSA:\n${JSON.stringify(customers)}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Hãy trả lời theo cấu trúc: Kết luận chính; Tín hiệu thị trường; Đối chiếu khách hàng GUSA; Chiến lược đề xuất; Việc cần làm ngay.`,
+          instructions: 'Bạn là chuyên gia CRM và chiến lược marketing của GUSA tại Việt Nam. Trả lời hoàn toàn bằng tiếng Việt. ERP là nguồn sự thật về khách hàng GUSA; web chỉ cung cấp bối cảnh thị trường. Bắt buộc nghiên cứu nhiều nguồn web độc lập, ưu tiên ít nhất 3 nguồn mới và đáng tin cậy khi có thể. Mọi chiến lược phải nối trực tiếp một tín hiệu thị trường với một số liệu ERP cụ thể. Phải dẫn ít nhất 5 số liệu ERP chính xác và gọi tên khách/nhóm khách liên quan; nếu không đủ dữ liệu phải nói rõ. Không đưa lời khuyên chung chung, không bịa số và không lấy số web thay cho số ERP.',
+          input: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nTÓM TẮT KPI ERP ĐÃ TÍNH:\n${JSON.stringify(erpSummary)}\nDỮ LIỆU KHÁCH HÀNG ERP CHI TIẾT:\n${JSON.stringify(customers)}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Hãy trả lời theo cấu trúc bắt buộc: 1) Kết luận dựa trên KPI ERP; 2) Tín hiệu thị trường có nguồn; 3) Bảng đối chiếu tín hiệu web với phân khúc và số liệu ERP; 4) Kế hoạch chiến lược 30/60/90 ngày gồm đối tượng, thông điệp, kênh, ngân sách tương đối, KPI đo lường; 5) Danh sách hành động Sale/Marketing trong 7 ngày.`,
           tools: [{ type: 'web_search', search_context_size: 'medium', user_location: { type: 'approximate', country: 'VN', city: 'Ho Chi Minh City', timezone: 'Asia/Ho_Chi_Minh' } }],
           tool_choice: 'required',
           include: ['web_search_call.action.sources'],

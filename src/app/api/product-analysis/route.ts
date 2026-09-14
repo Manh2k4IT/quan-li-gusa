@@ -26,6 +26,34 @@ function getResponseSources(output: ResponseOutput[] | undefined) {
   return [...sources.values()];
 }
 
+function buildProductErpSummary(products: ProductInput[]) {
+  const rows = products.map((product) => ({
+    sku: String(product.sku ?? ''),
+    name: String(product.name ?? product.sku ?? 'Chưa đặt tên'),
+    category: String(product.category ?? 'Chưa phân loại'),
+    soldQuantity: Number(product.soldQuantity ?? 0),
+    orderCount: Number(product.orderCount ?? 0),
+    revenue: Number(product.revenue ?? 0),
+    stock: Number(product.stock ?? 0),
+  }));
+  const totalRevenue = rows.reduce((sum, product) => sum + product.revenue, 0);
+  const totalSoldQuantity = rows.reduce((sum, product) => sum + product.soldQuantity, 0);
+  const totalOrders = rows.reduce((sum, product) => sum + product.orderCount, 0);
+  return {
+    productCount: rows.length,
+    totalRevenue,
+    totalSoldQuantity,
+    totalOrders,
+    productsWithSales: rows.filter((product) => product.soldQuantity > 0 || product.revenue > 0).length,
+    productsWithoutSales: rows.filter((product) => product.soldQuantity <= 0 && product.revenue <= 0).length,
+    productsOutOfStockWithSales: rows.filter((product) => product.soldQuantity > 0 && product.stock <= 0).length,
+    topRevenue: [...rows].sort((first, second) => second.revenue - first.revenue).slice(0, 10),
+    topQuantity: [...rows].sort((first, second) => second.soldQuantity - first.soldQuantity).slice(0, 10),
+    slowMovingStock: rows.filter((product) => product.stock > 0).sort((first, second) => first.soldQuantity - second.soldQuantity || second.stock - first.stock).slice(0, 10),
+    stockRisk: rows.filter((product) => product.soldQuantity > 0 && product.stock <= 0).sort((first, second) => second.soldQuantity - first.soldQuantity).slice(0, 10),
+  };
+}
+
 export async function GET() {
   const session = getSession(await cookies());
   if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -54,14 +82,15 @@ export async function POST(request: Request) {
     if (!apiKey) return NextResponse.json({ message: 'Chưa cấu hình OPENAI_API_KEY trên server.' }, { status: 503 });
 
     if (analysisMode === 'web+erp') {
-      const erpContext = `\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU SẢN PHẨM ERP GUSA:\n${JSON.stringify(products)}`;
+      const erpSummary = buildProductErpSummary(products);
+      const erpContext = `\n\nCHI NHÁNH GUSA: ${businessGroup}\nTÓM TẮT KPI ERP ĐÃ TÍNH:\n${JSON.stringify(erpSummary)}\nDỮ LIỆU SẢN PHẨM ERP CHI TIẾT:\n${JSON.stringify(products)}`;
       const webResponse = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: process.env.OPENAI_WEB_MODEL || 'gpt-4.1-mini',
-          instructions: 'Bạn là chuyên gia chiến lược sản phẩm và marketing của GUSA tại Việt Nam. Trả lời hoàn toàn bằng tiếng Việt. Bắt buộc nghiên cứu nhiều nguồn web độc lập, ưu tiên ít nhất 3 nguồn mới và đáng tin cậy khi có thể. Không trả về một danh sách đường dẫn thay cho câu trả lời. Hãy tổng hợp các nguồn thành nhận định thị trường, đối chiếu với dữ liệu ERP, giải thích cơ hội/rủi ro và đưa ra hành động cụ thể cho GUSA. Phân biệt rõ dữ liệu thị trường và dữ liệu nội bộ, không trộn nguồn hoặc bịa số. Nguồn chỉ dùng để kiểm chứng các kết luận.',
-          input: `${prompt}${erpContext}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Hãy trả lời theo cấu trúc: Kết luận chính; Tín hiệu thị trường; Đối chiếu dữ liệu GUSA; Chiến lược đề xuất; Việc cần làm ngay.`,
+          instructions: 'Bạn là chuyên gia chiến lược sản phẩm và marketing của GUSA tại Việt Nam. Trả lời hoàn toàn bằng tiếng Việt. ERP là nguồn sự thật về nội bộ GUSA; web chỉ cung cấp bối cảnh thị trường. Bắt buộc nghiên cứu nhiều nguồn web độc lập, ưu tiên ít nhất 3 nguồn mới và đáng tin cậy khi có thể. Mọi đề xuất phải nối trực tiếp một tín hiệu thị trường với một số liệu ERP cụ thể. Phải dẫn ít nhất 5 số liệu ERP chính xác và gọi tên/mã sản phẩm liên quan; nếu không đủ dữ liệu phải nói rõ. Không đưa lời khuyên chung chung, không bịa số, không lấy số web thay cho số ERP. Nguồn web chỉ dùng để kiểm chứng nhận định thị trường.',
+          input: `${prompt}${erpContext}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Hãy trả lời theo cấu trúc bắt buộc: 1) Kết luận dựa trên KPI ERP; 2) Tín hiệu thị trường có nguồn; 3) Bảng đối chiếu từng tín hiệu web với sản phẩm và số liệu ERP; 4) Kế hoạch chiến lược 30/60/90 ngày gồm sản phẩm, đối tượng, kênh, ngân sách tương đối, KPI đo lường; 5) Việc cần làm ngay trong 7 ngày.`,
           tools: [{ type: 'web_search', search_context_size: 'medium', user_location: { type: 'approximate', country: 'VN', city: 'Ho Chi Minh City', timezone: 'Asia/Ho_Chi_Minh' } }],
           tool_choice: 'required',
           include: ['web_search_call.action.sources'],
