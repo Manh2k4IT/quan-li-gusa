@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getErpCustomers, getErpSalesInvoices } from '@/lib/erp';
+import { getErpCustomers, getErpSalesInvoices, getErpSalesOrders } from '@/lib/erp';
 
 export type CustomerSegment = 'VIP – mua nhiều' | 'Khách tiềm năng' | 'Mua đều / ổn định' | 'Khách mới' | 'Giảm mua / ngừng mua';
 
@@ -17,6 +17,14 @@ function normalizeErpValue(value: unknown) {
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
+}
+
+function getBusinessGroup(value: unknown) {
+  const normalized = String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/đ/g, 'd');
+  if (normalized.includes('thoi trang q4') || normalized.includes('thoi trang quan 4')) return 'Thời trang Quận 4';
+  if (normalized.includes('vai ben thanh')) return 'Vải Bến Thành';
+  if (normalized.includes('vai quan 4')) return 'Vải Quận 4';
+  return null;
 }
 
 async function syncCustomersFromErp(orgId: string) {
@@ -115,6 +123,7 @@ async function getAnalysis() {
   const organization = await prisma.organization.findFirst({ where: { slug: 'gusa' } });
   let erpCustomers: Array<Record<string, unknown>> = [];
   let erpInvoices: Array<Record<string, unknown>> = [];
+  let erpSalesOrders: Array<Record<string, unknown>> = [];
   if (organization) {
     try {
       erpCustomers = await getErpCustomers();
@@ -125,6 +134,11 @@ async function getAnalysis() {
       erpInvoices = await getErpSalesInvoices();
     } catch (error) {
       console.error('ERP sales invoice sync failed:', error);
+    }
+    try {
+      erpSalesOrders = await getErpSalesOrders();
+    } catch (error) {
+      console.error('ERP sales order sync failed:', error);
     }
   }
 
@@ -159,30 +173,67 @@ async function getAnalysis() {
   }
 
   if (erpCustomers.length) {
-    return erpCustomers.map((customer, index) => {
-      const customerCode = String(customer.name ?? '').trim().toLowerCase();
-      const name = String(customer.customer_name ?? customer.name ?? '').trim() || 'Khách chưa đặt tên';
-      const status = String(customer.customer_type ?? 'Chưa phân loại').trim() || 'Chưa phân loại';
-      const stats = invoiceStats.get(customerCode);
-      const value = stats?.total ?? 0;
-      const orderCount = stats?.count ?? 0;
-      const firstOrderAt = stats?.firstOrderAt ?? null;
-      const lastOrderAt = stats?.lastOrderAt ?? null;
+    const customerByCode = new Map(erpCustomers.map((customer) => [String(customer.name ?? '').trim().toLowerCase(), customer]));
+    const orderStats = new Map<string, { group: string; code: string; count: number; total: number; firstOrderAt: Date | null; lastOrderAt: Date | null }>();
+    for (const order of erpSalesOrders) {
+      const group = getBusinessGroup(order.branch);
+      const code = String(order.customer ?? '').trim().toLowerCase();
+      if (!group || !code) continue;
+      const key = `${group}|${code}`;
+      const dateValue = String(order.transaction_date ?? '').trim();
+      const orderDate = dateValue ? new Date(dateValue) : null;
+      const validDate = orderDate && !Number.isNaN(orderDate.getTime()) ? orderDate : null;
+      const stats = orderStats.get(key) ?? { group, code, count: 0, total: 0, firstOrderAt: null, lastOrderAt: null };
+      stats.count += 1;
+      stats.total += normalizeErpValue(order.grand_total);
+      if (validDate && (!stats.firstOrderAt || validDate < stats.firstOrderAt)) stats.firstOrderAt = validDate;
+      if (validDate && (!stats.lastOrderAt || validDate > stats.lastOrderAt)) stats.lastOrderAt = validDate;
+      orderStats.set(key, stats);
+    }
 
+    const results = [...orderStats.values()].map((stats) => {
+      const customer = customerByCode.get(stats.code);
+      const name = String(customer?.customer_name ?? customer?.name ?? stats.code).trim();
+      const status = String(customer?.customer_type ?? 'Chưa phân loại').trim() || 'Chưa phân loại';
       return {
-        id: String(customer.name ?? `erp-customer-${index}`),
+        id: `${stats.group}:${stats.code}`,
         name,
-        phone: String(customer.mobile_no ?? '').trim() || null,
-        company: String(customer.customer_group ?? '').trim() || 'Chưa phân loại',
+        phone: String(customer?.mobile_no ?? '').trim() || null,
+        company: stats.group,
         status,
-        orderCount,
-        totalSpent: value,
-        avgOrderValue: orderCount ? value / orderCount : 0,
-        lastOrderAt: lastOrderAt?.toISOString() ?? null,
-        daysSinceLastOrder: lastOrderAt ? Math.floor((Date.now() - lastOrderAt.getTime()) / 86400000) : null,
-        segment: getSegment({ value, orderCount, firstOrderAt, lastOrderAt, status }),
+        orderCount: stats.count,
+        totalSpent: stats.total,
+        avgOrderValue: stats.count ? stats.total / stats.count : 0,
+        lastOrderAt: stats.lastOrderAt?.toISOString() ?? null,
+        daysSinceLastOrder: stats.lastOrderAt ? Math.floor((Date.now() - stats.lastOrderAt.getTime()) / 86400000) : null,
+        segment: getSegment({ value: stats.total, orderCount: stats.count, firstOrderAt: stats.firstOrderAt, lastOrderAt: stats.lastOrderAt, status }),
       };
     });
+    const resultKeys = new Set(results.map((customer) => customer.id));
+
+    erpCustomers.forEach((customer, index) => {
+      const group = getBusinessGroup(customer.customer_group);
+      const customerCode = String(customer.name ?? '').trim().toLowerCase();
+      const id = `${group}:${customerCode}`;
+      if (!group || !customerCode || resultKeys.has(id)) return;
+      const name = String(customer.customer_name ?? customer.name ?? '').trim() || 'Khách chưa đặt tên';
+      const status = String(customer.customer_type ?? 'Chưa phân loại').trim() || 'Chưa phân loại';
+      results.push({
+        id: id || `erp-customer-${index}`,
+        name,
+        phone: String(customer.mobile_no ?? '').trim() || null,
+        company: group,
+        status,
+        orderCount: 0,
+        totalSpent: 0,
+        avgOrderValue: 0,
+        lastOrderAt: null,
+        daysSinceLastOrder: null,
+        segment: getSegment({ value: 0, orderCount: 0, firstOrderAt: null, lastOrderAt: null, status }),
+      });
+    });
+
+    return results;
   }
 
   return customers.map((customer) => {

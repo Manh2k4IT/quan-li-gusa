@@ -324,6 +324,30 @@ export async function getErpSalesInvoices() {
   return invoices;
 }
 
+export async function getErpSalesOrders() {
+  const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
+  const fields = ['name', 'customer', 'customer_name', 'grand_total', 'transaction_date', 'branch', 'status', 'docstatus'];
+  const orders: Array<Record<string, unknown>> = [];
+  const pageSize = 5000;
+
+  await ensureErpSessionCookie();
+
+  for (let offset = 0; offset < 50000; offset += pageSize) {
+    const response = await fetchWithErpRetry(`${baseUrl}/api/resource/Sales%20Order?fields=${encodeURIComponent(JSON.stringify(fields))}&filters=${encodeURIComponent(JSON.stringify([['docstatus', '!=', 2]]))}&limit_page_length=${pageSize}&limit_start=${offset}`, {
+      headers: getErpHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) throw new Error(`ERP sales order request failed: ${response.status} ${response.statusText}`);
+    const payload = (await response.json()) as { data?: Array<Record<string, unknown>> };
+    const page = Array.isArray(payload.data) ? payload.data : [];
+    orders.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  return orders;
+}
+
 export function getErpConfig() {
   const apiUrl = cleanEnvValue(process.env.ERP_API_URL || process.env.ERP_BASE_URL) || 'https://gusaz.com';
   const apiKey = cleanEnvValue(process.env.ERP_API_KEY || process.env.ERP_USERNAME);
