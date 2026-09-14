@@ -1668,6 +1668,14 @@ button {
   max-height: 640px;
 }
 
+.product-analysis-panel {
+  margin-bottom: 22px;
+}
+
+.product-ai-panel {
+  margin-top: 0;
+}
+
 .product-analysis-loading {
   display: flex;
   align-items: center;
