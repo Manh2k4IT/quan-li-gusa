@@ -1380,35 +1380,28 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
   const fields = (value: string[]) => encodeURIComponent(JSON.stringify(value));
   const company = await getErpCompanyName();
 
-  const [itemsResponse, binsResponse, invoiceItemsResponse] = await Promise.all([
-    fetch(`${baseUrl}/api/resource/Item?fields=${fields(['name', 'item_code', 'item_name', 'item_group', 'standard_rate'])}&limit_page_length=100`, {
-      headers: getErpHeaders(),
-      cache: 'no-store',
-    }),
-    fetch(`${baseUrl}/api/resource/Bin?fields=${fields(['item_code', 'actual_qty', 'warehouse'])}&limit_page_length=1000`, {
-      headers: getErpHeaders(),
-      cache: 'no-store',
-    }),
-    fetch(`${baseUrl}/api/resource/Sales%20Invoice%20Item?fields=${fields(['item_code', 'parent', 'qty', 'rate', 'amount', 'base_amount', 'net_amount', 'base_net_amount'])}&limit_page_length=5000`, {
-      headers: getErpHeaders(),
-      cache: 'no-store',
-    }),
-  ]);
-
-  if (!itemsResponse.ok || !binsResponse.ok || !invoiceItemsResponse.ok) {
-    throw new Error('ERP product analysis request failed');
+  async function getAllRows(doctype: string, selectedFields: string[], pageSize: number) {
+    const rows: Array<Record<string, unknown>> = [];
+    for (let offset = 0; offset < 100000; offset += pageSize) {
+      const response = await fetchWithErpRetry(`${baseUrl}/api/resource/${encodeURIComponent(doctype)}?fields=${fields(selectedFields)}&limit_page_length=${pageSize}&limit_start=${offset}`, {
+        headers: getErpHeaders(),
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error(`ERP product request failed for ${doctype}: ${response.status}`);
+      const payload = (await response.json()) as { data?: Array<Record<string, unknown>> };
+      const page = Array.isArray(payload.data) ? payload.data : [];
+      rows.push(...page);
+      if (page.length < pageSize) break;
+    }
+    return rows;
   }
 
-  const itemsPayload = (await itemsResponse.json()) as { data?: Array<Record<string, unknown>> };
-  const binsPayload = (await binsResponse.json()) as { data?: Array<Record<string, unknown>> };
-  const invoiceItemsPayload = (await invoiceItemsResponse.json()) as { data?: Array<Record<string, unknown>> };
-  const orderItemsResponse = await fetch(`${baseUrl}/api/resource/Sales%20Order%20Item?fields=${fields(['item_code', 'parent', 'qty', 'rate', 'amount', 'base_amount'])}&limit_page_length=5000`, {
-    headers: getErpHeaders(),
-    cache: 'no-store',
-  });
-  const orderItemsPayload = orderItemsResponse.ok
-    ? (await orderItemsResponse.json()) as { data?: Array<Record<string, unknown>> }
-    : { data: [] };
+  const [items, bins, invoiceItems, orderItems] = await Promise.all([
+    getAllRows('Item', ['name', 'item_code', 'item_name', 'item_group', 'standard_rate'], 1000),
+    getAllRows('Bin', ['item_code', 'actual_qty', 'warehouse'], 5000),
+    getAllRows('Sales Invoice Item', ['item_code', 'parent', 'qty', 'rate', 'amount', 'base_amount', 'net_amount', 'base_net_amount'], 5000).catch(() => []),
+    getAllRows('Sales Order Item', ['item_code', 'parent', 'qty', 'rate', 'amount', 'base_amount'], 5000).catch(() => []),
+  ]);
   const stockBySku = new Map<string, number>();
   const soldBySku = new Map<string, { quantity: number; revenue: number }>();
   const orderedBySku = new Map<string, { quantity: number; revenue: number }>();
@@ -1417,12 +1410,12 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
   const orderOrdersBySku = new Map<string, Set<string>>();
   const reportOrdersBySku = new Map<string, Set<string>>();
 
-  for (const bin of binsPayload.data ?? []) {
+  for (const bin of bins) {
     const sku = String(bin.item_code ?? '');
     if (sku) stockBySku.set(sku, (stockBySku.get(sku) ?? 0) + toNumber(bin.actual_qty));
   }
 
-  for (const invoiceItem of invoiceItemsPayload.data ?? []) {
+  for (const invoiceItem of invoiceItems) {
     const sku = String(invoiceItem.item_code ?? '');
     if (!sku) continue;
 
@@ -1445,7 +1438,7 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
     }
   }
 
-  for (const orderItem of orderItemsPayload.data ?? []) {
+  for (const orderItem of orderItems) {
     const sku = String(orderItem.item_code ?? '');
     if (!sku) continue;
 
@@ -1516,7 +1509,7 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
   const hasReportSales = [...reportSalesBySku.values()].some((sales) => sales.quantity !== 0 || sales.revenue !== 0);
   const hasInvoiceSales = [...soldBySku.values()].some((sales) => sales.quantity !== 0 || sales.revenue !== 0);
 
-  return (itemsPayload.data ?? []).map((item) => {
+  return items.map((item) => {
     const sku = String(item.item_code ?? item.name ?? '');
     const salesSource = hasReportSales ? reportSalesBySku : hasInvoiceSales ? soldBySku : orderedBySku;
     const sales = salesSource.get(sku) ?? { quantity: 0, revenue: 0 };

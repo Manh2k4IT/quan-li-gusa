@@ -11,6 +11,7 @@ export default function SalesLayout({ children }: { children: React.ReactNode })
   const isSalesReports = pathname.startsWith('/sales-reports');
   const isSalesPlan = pathname.startsWith('/sales-plan');
   const isCustomerAnalysis = pathname.startsWith('/customer-analysis');
+  const isProductAnalysis = pathname.startsWith('/product-analysis');
 
   useEffect(() => {
     fetch('/api/session')
@@ -69,6 +70,11 @@ export default function SalesLayout({ children }: { children: React.ReactNode })
               <Link href="/customer-analysis?group=fabric-q4" onClick={() => selectCustomerGroup('fabric-q4')} className={`nav-submenu-item ${customerGroup === 'fabric-q4' ? 'active' : ''}`}>Vải Quận 4</Link>
             </div>
           )}
+
+          <Link href="/product-analysis" className={`nav-item ${isProductAnalysis ? 'active' : ''}`}>
+            <span>◇</span>
+            Phân tích sản phẩm
+          </Link>
 
         </nav>
 
