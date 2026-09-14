@@ -60,8 +60,8 @@ export async function POST(request: Request) {
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: process.env.OPENAI_WEB_MODEL || 'gpt-4.1-mini',
-          instructions: 'Bạn là chuyên gia chiến lược sản phẩm và marketing của GUSA tại Việt Nam. Trả lời hoàn toàn bằng tiếng Việt. Với dữ liệu thị trường, phải dùng web search và nêu rõ nguồn. Với dữ liệu ERP, chỉ kết luận từ số liệu được cung cấp. Phân biệt rõ dữ liệu thị trường và dữ liệu nội bộ, không trộn nguồn hoặc bịa số.',
-          input: `${prompt}${erpContext}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Ưu tiên nguồn mới, đáng tin cậy và liên quan thị trường Việt Nam.`,
+          instructions: 'Bạn là chuyên gia chiến lược sản phẩm và marketing của GUSA tại Việt Nam. Trả lời hoàn toàn bằng tiếng Việt. Bắt buộc nghiên cứu nhiều nguồn web độc lập, ưu tiên ít nhất 3 nguồn mới và đáng tin cậy khi có thể. Không trả về một danh sách đường dẫn thay cho câu trả lời. Hãy tổng hợp các nguồn thành nhận định thị trường, đối chiếu với dữ liệu ERP, giải thích cơ hội/rủi ro và đưa ra hành động cụ thể cho GUSA. Phân biệt rõ dữ liệu thị trường và dữ liệu nội bộ, không trộn nguồn hoặc bịa số. Nguồn chỉ dùng để kiểm chứng các kết luận.',
+          input: `${prompt}${erpContext}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Hãy trả lời theo cấu trúc: Kết luận chính; Tín hiệu thị trường; Đối chiếu dữ liệu GUSA; Chiến lược đề xuất; Việc cần làm ngay.`,
           tools: [{ type: 'web_search', search_context_size: 'medium', user_location: { type: 'approximate', country: 'VN', city: 'Ho Chi Minh City', timezone: 'Asia/Ho_Chi_Minh' } }],
           tool_choice: 'required',
           include: ['web_search_call.action.sources'],

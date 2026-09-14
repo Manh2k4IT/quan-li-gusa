@@ -318,8 +318,8 @@ export async function POST(request: Request) {
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: process.env.OPENAI_WEB_MODEL || 'gpt-4.1-mini',
-          instructions: 'Bạn là chuyên gia CRM và chiến lược marketing của GUSA tại Việt Nam. Trả lời hoàn toàn bằng tiếng Việt. Bắt buộc tìm web để lấy xu hướng thị trường mới nhất, sau đó đối chiếu với dữ liệu khách hàng ERP. Phân biệt rõ thông tin thị trường và dữ liệu nội bộ; không bịa số. Nêu nguồn web rõ ràng.',
-          input: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU KHÁCH HÀNG ERP GUSA:\n${JSON.stringify(customers)}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Ưu tiên thị trường Việt Nam và nguồn mới, đáng tin cậy.`,
+          instructions: 'Bạn là chuyên gia CRM và chiến lược marketing của GUSA tại Việt Nam. Trả lời hoàn toàn bằng tiếng Việt. Bắt buộc nghiên cứu nhiều nguồn web độc lập, ưu tiên ít nhất 3 nguồn mới và đáng tin cậy khi có thể. Không trả về một danh sách đường dẫn thay cho câu trả lời. Hãy tổng hợp các nguồn thành nhận định thị trường, đối chiếu với dữ liệu khách hàng ERP, xác định phân khúc/cơ hội/rủi ro và đề xuất chiến lược cụ thể. Phân biệt rõ dữ liệu thị trường và dữ liệu nội bộ; không bịa số. Nguồn chỉ dùng để kiểm chứng các kết luận.',
+          input: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU KHÁCH HÀNG ERP GUSA:\n${JSON.stringify(customers)}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Hãy trả lời theo cấu trúc: Kết luận chính; Tín hiệu thị trường; Đối chiếu khách hàng GUSA; Chiến lược đề xuất; Việc cần làm ngay.`,
           tools: [{ type: 'web_search', search_context_size: 'medium', user_location: { type: 'approximate', country: 'VN', city: 'Ho Chi Minh City', timezone: 'Asia/Ho_Chi_Minh' } }],
           tool_choice: 'required',
           include: ['web_search_call.action.sources'],
