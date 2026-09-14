@@ -120,6 +120,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ w
             <span>◌</span>
             Phân tích khách hàng
           </Link>
+          <Link href="/product-analysis" className="nav-item">
+            <span>◇</span>
+            Phân tích sản phẩm
+          </Link>
 
         </nav>
       </aside>
