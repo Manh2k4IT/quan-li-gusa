@@ -22,6 +22,13 @@ function getResponseSources(output: ResponseOutput[] | undefined) {
   return [...sources.values()];
 }
 
+function getCustomerBusinessScope(businessGroup: string) {
+  const normalized = businessGroup.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/đ/g, 'd');
+  if (normalized.includes('thoi trang')) return 'Khách của chi nhánh thời trang may mặc; phân tích nhu cầu quần áo, bộ sưu tập và sản phẩm thời trang hoàn chỉnh.';
+  if (normalized.includes('ben thanh')) return 'Khách mua vải linen tại Bến Thành; phân tích nhu cầu vải theo mét, chất liệu, màu sắc, họa tiết và hành vi mua sỉ/lẻ vải, không coi họ là khách mua quần áo.';
+  return 'Khách mua vải linen tại Quận 4; phân tích nhu cầu vải theo mét, chất liệu, màu sắc, họa tiết và hành vi mua sỉ/lẻ vải, không coi họ là khách mua quần áo.';
+}
+
 function buildCustomerErpSummary(customers: CustomerAnalysisInput[]) {
   const rows = customers.map((customer) => ({
     name: String(customer.name ?? 'Chưa đặt tên'),
@@ -334,6 +341,7 @@ export async function POST(request: Request) {
     const businessGroup = String(body.businessGroup ?? 'nhóm đang chọn').trim();
     const analysisMode = body.analysisMode === 'web+erp' ? 'web+erp' : 'erp';
     const apiKey = process.env.OPENAI_API_KEY;
+    const businessScope = getCustomerBusinessScope(businessGroup);
 
     if (!apiKey) {
       return NextResponse.json({ reply: 'Chưa cấu hình OPENAI_API_KEY. Hãy dùng các nhóm phân loại tự động và bổ sung API key để bật phân tích AI.', provider: 'fallback' });
@@ -346,8 +354,8 @@ export async function POST(request: Request) {
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: process.env.OPENAI_WEB_MODEL || 'gpt-4.1-mini',
-          instructions: 'Bạn là chuyên gia CRM và chiến lược marketing ngành thời trang và vải linen của GUSA tại Việt Nam. Chỉ phân tích trong bối cảnh khách mua vải linen, khách thời trang, bán lẻ/bán sỉ vải và sản phẩm thời trang liên quan. Trả lời hoàn toàn bằng tiếng Việt. ERP là nguồn sự thật về khách hàng GUSA; web chỉ cung cấp bối cảnh thị trường. Bắt buộc nghiên cứu nhiều nguồn web độc lập, ưu tiên nguồn mới và đáng tin cậy về linen, thời trang, hành vi người mua, giá, mùa vụ và kênh marketing tại Việt Nam hoặc khu vực phù hợp. Chủ động chọn khách hàng, phân khúc và số liệu ERP thực sự liên quan. Mỗi chiến lược phải có mục “Căn cứ ERP” nêu con số cụ thể và giải thích vì sao con số đó dẫn đến đề xuất; đồng thời có mục “Căn cứ thị trường” nêu tín hiệu web tương ứng. Không áp đặt số lượng số liệu cố định nhưng không được đưa chiến lược thiếu căn cứ định lượng. Nếu dữ liệu không đủ phải nói rõ. Không đưa lời khuyên chung chung, không bịa số và không lấy số web thay cho số ERP.',
-          input: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nTÓM TẮT KPI ERP ĐÃ TÍNH:\n${JSON.stringify(erpSummary)}\nDỮ LIỆU KHÁCH HÀNG ERP CHI TIẾT:\n${JSON.stringify(customers)}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Hãy trả lời theo cấu trúc bắt buộc: 1) Chẩn đoán khách hàng từ KPI ERP; 2) Xu hướng thị trường linen/thời trang có nguồn; 3) Các chiến lược ưu tiên, mỗi chiến lược gồm Căn cứ ERP (con số, tên khách/phân khúc), Căn cứ thị trường, Lý do phù hợp với GUSA, Hành động Sale/Marketing, KPI mục tiêu; 4) Kế hoạch 30/60/90 ngày; 5) Danh sách khách/phân khúc cần xử lý trong 7 ngày.`,
+          instructions: `Bạn là chuyên gia CRM và chiến lược marketing ngành thời trang và vải linen của GUSA tại Việt Nam. ${businessScope} Trả lời hoàn toàn bằng tiếng Việt. ERP là nguồn sự thật về khách hàng GUSA; web chỉ cung cấp bối cảnh thị trường. Không được chuyển khách của chi nhánh vải thành khách mua quần áo hoặc đề xuất sai phạm vi. Bắt buộc nghiên cứu nhiều nguồn web độc lập, ưu tiên nguồn mới và đáng tin cậy đúng phạm vi chi nhánh. Chủ động chọn khách hàng, phân khúc và số liệu ERP thực sự liên quan. Mỗi chiến lược phải có căn cứ ERP định lượng, căn cứ thị trường, hành động và KPI. Nếu dữ liệu không đủ phải nói rõ. Không đưa lời khuyên chung chung, không bịa số và không lấy số web thay cho số ERP.`,
+          input: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nPHẠM VI KHÁCH HÀNG BẮT BUỘC: ${businessScope}\nTÓM TẮT KPI ERP ĐÃ TÍNH:\n${JSON.stringify(erpSummary)}\nDỮ LIỆU KHÁCH HÀNG ERP CHI TIẾT:\n${JSON.stringify(customers)}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Hãy trả lời theo cấu trúc: 1) Chẩn đoán khách hàng từ KPI ERP; 2) Xu hướng thị trường đúng phạm vi chi nhánh có nguồn; 3) Chiến lược có căn cứ ERP, căn cứ thị trường, hành động và KPI; 4) Kế hoạch 30/60/90 ngày; 5) Danh sách khách/phân khúc cần xử lý trong 7 ngày.`,
           tools: [{ type: 'web_search', search_context_size: 'medium', user_location: { type: 'approximate', country: 'VN', city: 'Ho Chi Minh City', timezone: 'Asia/Ho_Chi_Minh' } }],
           tool_choice: 'required',
           include: ['web_search_call.action.sources'],
@@ -366,7 +374,7 @@ export async function POST(request: Request) {
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         temperature: 0.2,
         messages: [
-          { role: 'system', content: 'Bạn là chuyên gia CRM nội bộ của GUSA. Trả lời tiếng Việt, ngắn gọn và chỉ dựa trên dữ liệu ERP được cung cấp. Không sử dụng hay suy đoán dữ liệu thị trường bên ngoài, không bịa số. Phân tích theo nhóm khách, dấu hiệu, ưu tiên và hành động Sale cụ thể.' },
+          { role: 'system', content: `Bạn là chuyên gia CRM nội bộ của GUSA. ${businessScope} Trả lời tiếng Việt và chỉ dựa trên dữ liệu ERP được cung cấp. Không phân tích sai phạm vi chi nhánh, không sử dụng hay suy đoán dữ liệu thị trường bên ngoài, không bịa số. Phân tích theo nhóm khách, dấu hiệu, ưu tiên và hành động Sale cụ thể.` },
           { role: 'user', content: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU KHÁCH HÀNG ERP:\n${JSON.stringify(customers)}` },
         ],
       }),

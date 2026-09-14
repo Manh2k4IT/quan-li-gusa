@@ -26,6 +26,17 @@ function getResponseSources(output: ResponseOutput[] | undefined) {
   return [...sources.values()];
 }
 
+function getBusinessScope(businessGroup: string) {
+  const normalized = businessGroup.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/đ/g, 'd');
+  if (normalized.includes('thoi trang')) {
+    return 'Đây là chi nhánh THỜI TRANG MAY MẶC. Chỉ nghiên cứu và đề xuất quần áo, bộ sưu tập, thiết kế, kiểu dáng và sản phẩm thời trang hoàn chỉnh có trong dữ liệu ERP của chi nhánh này.';
+  }
+  if (normalized.includes('ben thanh')) {
+    return 'Đây là chi nhánh BÁN VẢI LINEN BẾN THÀNH. Chỉ nghiên cứu thị trường vải linen theo mét, chất liệu, màu sắc, họa tiết, giá vải, khách may mặc và kênh bán sỉ/lẻ vải. Không đề xuất bán quần áo hoặc sản phẩm may mặc hoàn chỉnh như thể chúng là hàng của chi nhánh.';
+  }
+  return 'Đây là chi nhánh BÁN VẢI LINEN QUẬN 4. Chỉ nghiên cứu thị trường vải linen theo mét, chất liệu, màu sắc, họa tiết, giá vải, khách may mặc và kênh bán sỉ/lẻ vải. Không đề xuất bán quần áo hoặc sản phẩm may mặc hoàn chỉnh như thể chúng là hàng của chi nhánh.';
+}
+
 function buildProductErpSummary(products: ProductInput[]) {
   const rows = products.map((product) => ({
     sku: String(product.sku ?? ''),
@@ -80,6 +91,7 @@ export async function POST(request: Request) {
     const businessGroup = String(body.businessGroup ?? 'nhóm đang chọn').trim();
     const analysisMode = body.analysisMode === 'web+erp' ? 'web+erp' : 'erp';
     const apiKey = process.env.OPENAI_API_KEY;
+    const businessScope = getBusinessScope(businessGroup);
 
     if (!apiKey) return NextResponse.json({ message: 'Chưa cấu hình OPENAI_API_KEY trên server.' }, { status: 503 });
 
@@ -91,8 +103,8 @@ export async function POST(request: Request) {
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: process.env.OPENAI_WEB_MODEL || 'gpt-4.1-mini',
-          instructions: 'Bạn là chuyên gia chiến lược ngành thời trang và vải linen của GUSA tại Việt Nam. Chỉ phân tích trong bối cảnh thời trang, vải linen, bán lẻ/bán sỉ vải và sản phẩm thời trang liên quan. ERP là nguồn sự thật; web chỉ cung cấp bối cảnh. Bắt buộc bắt đầu từ yêu cầu cụ thể và dữ liệu ERP rồi mới mở rộng bằng nhiều nguồn web. Khi người dùng hỏi tồn kho, bán chậm hoặc mã tồn, phần đầu bắt buộc là bảng SKU gồm mã, tên, tồn kho, đã bán, số đơn, doanh thu và lý do ưu tiên. Không được viện dẫn đánh giá khách hàng, chiến dịch cũ, giá bán lẻ hoặc thuộc tính không có trong ERP. Mỗi chiến lược phải nêu mã sản phẩm, số liệu ERP, tín hiệu thị trường, hành động và KPI. Không đưa lời khuyên chung chung, không bịa số.',
-          input: `${prompt}${erpContext}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Nếu hỏi tồn kho/bán chậm, trả lời theo cấu trúc: 1) Bảng mã tồn cần xử lý; 2) Chẩn đoán từng mã/nhóm mã từ ERP; 3) Tín hiệu thị trường có nguồn; 4) Chiến lược cụ thể cho từng mã/nhóm mã; 5) Kế hoạch 7/30/60/90 ngày và KPI. Nếu là câu hỏi khác, vẫn bắt đầu từ mã và số liệu ERP liên quan trước khi mở rộng sang thị trường.`,
+          instructions: `Bạn là chuyên gia chiến lược ngành thời trang và vải linen của GUSA tại Việt Nam. ${businessScope} ERP là nguồn sự thật; web chỉ cung cấp bối cảnh. Không được lấy sản phẩm của chi nhánh khác hoặc sản phẩm không có trong payload làm đề xuất cho chi nhánh đang phân tích. Bắt buộc bắt đầu từ yêu cầu cụ thể và dữ liệu ERP rồi mới mở rộng bằng nhiều nguồn web. Khi người dùng hỏi tồn kho, bán chậm hoặc mã tồn, phần đầu bắt buộc là bảng SKU gồm mã, tên, tồn kho, đã bán, số đơn, doanh thu và lý do ưu tiên. Không được viện dẫn đánh giá khách hàng, chiến dịch cũ, giá bán lẻ hoặc thuộc tính không có trong ERP. Mỗi chiến lược phải nêu mã sản phẩm thuộc đúng chi nhánh, số liệu ERP, tín hiệu thị trường, hành động và KPI. Không đưa lời khuyên chung chung, không bịa số.`,
+          input: `${prompt}${erpContext}\n\nPHẠM VI KINH DOANH BẮT BUỘC: ${businessScope}\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Nếu hỏi tồn kho/bán chậm, trả lời theo cấu trúc: 1) Bảng mã tồn cần xử lý; 2) Chẩn đoán từng mã/nhóm mã từ ERP; 3) Tín hiệu thị trường có nguồn đúng phạm vi chi nhánh; 4) Chiến lược cụ thể cho từng mã/nhóm mã; 5) Kế hoạch 7/30/60/90 ngày và KPI. Nếu là câu hỏi khác, vẫn bắt đầu từ mã và số liệu ERP liên quan trước khi mở rộng sang thị trường.`,
           tools: [{ type: 'web_search', search_context_size: 'medium', user_location: { type: 'approximate', country: 'VN', city: 'Ho Chi Minh City', timezone: 'Asia/Ho_Chi_Minh' } }],
           tool_choice: 'required',
           include: ['web_search_call.action.sources'],
@@ -116,7 +128,7 @@ export async function POST(request: Request) {
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         temperature: 0.2,
         messages: [
-          { role: 'system', content: 'Bạn là trợ lý phân tích sản phẩm nội bộ của GUSA. Trả lời hoàn toàn bằng tiếng Việt và chỉ dựa trên dữ liệu ERP được cung cấp. Không sử dụng hay suy đoán dữ liệu thị trường bên ngoài, không bịa số. Nếu dữ liệu chưa đủ, phải nói rõ.' },
+          { role: 'system', content: `Bạn là trợ lý phân tích sản phẩm nội bộ của GUSA. ${businessScope} Trả lời hoàn toàn bằng tiếng Việt và chỉ dựa trên dữ liệu ERP được cung cấp. Không lấy sản phẩm chi nhánh khác, không sử dụng hay suy đoán dữ liệu thị trường bên ngoài, không bịa số. Nếu dữ liệu chưa đủ, phải nói rõ.` },
           { role: 'user', content: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nDỮ LIỆU SẢN PHẨM ERP GUSA:\n${JSON.stringify(products)}` },
         ],
       }),
