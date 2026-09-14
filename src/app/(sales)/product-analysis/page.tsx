@@ -96,13 +96,6 @@ export default function ProductAnalysisPage() {
       .sort((first, second) => second[sortKey] - first[sortKey]);
   }, [category, groupProducts, search, sortKey]);
 
-  const metrics = useMemo(() => ({
-    products: groupProducts.length,
-    revenue: groupProducts.reduce((sum, product) => sum + product.revenue, 0),
-    soldQuantity: groupProducts.reduce((sum, product) => sum + product.soldQuantity, 0),
-    lowStock: groupProducts.filter((product) => product.stock <= Math.max(product.reorderPoint, 0) && product.soldQuantity > 0).length,
-  }), [groupProducts]);
-
   async function analyzeWithAi() {
     if (aiLoading || loading || !groupProducts.length) return;
     setAiLoading(true);
@@ -158,13 +151,6 @@ export default function ProductAnalysisPage() {
           <span style={{ width: `${loading ? loadProgress : 100}%` }} />
         </div>
         <small>{loading ? (loadProgress < 30 ? 'Đang xác thực nguồn ERP...' : loadProgress < 90 ? 'Đang đồng bộ sản phẩm, doanh thu và tồn kho từ ERP...' : 'Đang hoàn tất dữ liệu sản phẩm...') : erpConnection === 'connected' ? `Dữ liệu sản phẩm ${selectedGroup.label} được đồng bộ từ ERP.` : 'Không thể đồng bộ dữ liệu sản phẩm từ ERP.'}</small>
-      </section>
-
-      <section className="product-analysis-metrics">
-        <div><span>Sản phẩm ERP</span><strong>{metrics.products.toLocaleString('vi-VN')}</strong></div>
-        <div><span>Tổng doanh thu</span><strong>{formatVnd(metrics.revenue)}</strong></div>
-        <div><span>Sản lượng đã bán</span><strong>{formatNumber(metrics.soldQuantity)}</strong></div>
-        <div><span>Cần kiểm tra tồn</span><strong>{metrics.lowStock.toLocaleString('vi-VN')}</strong></div>
       </section>
 
       <section className="panel product-analysis-panel">
