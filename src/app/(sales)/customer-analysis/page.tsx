@@ -184,12 +184,12 @@ export default function CustomerAnalysisPage() {
             <span className="customer-erp-dot" aria-hidden="true" />
             <strong>{erpConnection === 'checking' ? 'Đang kiểm tra kết nối ERP' : erpConnection === 'connected' ? 'ERP đã kết nối' : 'ERP không kết nối'}</strong>
           </div>
-          <span>{loading ? `${loadProgress}%` : `${customers.length} khách đã tải`}</span>
+          <span>{loading ? `${loadProgress}%` : `${groupCustomers.length} khách ${selectedGroup.label} đã tải`}</span>
         </div>
         <div className="customer-load-track" role="progressbar" aria-label="Tiến trình tải dữ liệu khách hàng" aria-valuemin={0} aria-valuemax={100} aria-valuenow={loading ? loadProgress : 100}>
           <span style={{ width: `${loading ? loadProgress : 100}%` }} />
         </div>
-        <small>{loading ? (loadProgress < 28 ? 'Đang xác thực nguồn dữ liệu...' : loadProgress < 88 ? 'Đang đồng bộ khách hàng và hóa đơn từ ERP...' : 'Đang hoàn tất danh sách...') : erpConnection === 'connected' ? 'Dữ liệu khách hàng được đồng bộ từ ERP.' : 'Đang hiển thị dữ liệu đã lưu gần nhất.'}</small>
+        <small>{loading ? (loadProgress < 28 ? 'Đang xác thực nguồn dữ liệu...' : loadProgress < 88 ? 'Đang đồng bộ khách hàng và hóa đơn từ ERP...' : 'Đang hoàn tất danh sách...') : erpConnection === 'connected' ? `Dữ liệu ${selectedGroup.label} được đồng bộ từ ERP.` : 'Đang hiển thị dữ liệu đã lưu gần nhất.'}</small>
       </section>
 
       <section className="customer-dual-table-grid">
