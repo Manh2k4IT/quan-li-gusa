@@ -1398,7 +1398,7 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
   }
 
   const [items, bins, invoices, invoiceItems, orderItems] = await Promise.all([
-    getAllRows('Item', ['name', 'item_code', 'item_name', 'item_group', 'standard_rate'], 1000),
+    getAllRows('Item', ['name', 'item_code', 'item_name', 'item_group', 'standard_rate', 'is_stock_item'], 1000),
     getAllRows('Bin', ['item_code', 'actual_qty', 'warehouse'], 5000),
     getAllRows('Sales Invoice', ['name', 'branch', 'docstatus'], 5000),
     getAllRows('Sales Invoice Item', ['item_code', 'parent', 'qty', 'rate', 'amount', 'base_amount', 'net_amount', 'base_net_amount'], 5000).catch(() => []),
@@ -1528,17 +1528,18 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
   const itemBySku = new Map(items.map((item) => [String(item.item_code ?? item.name ?? ''), item]));
   const groupSkuKeys = new Set([...stockByGroupSku.keys(), ...reportSalesBySku.keys()]);
 
-  return [...groupSkuKeys].map((key) => {
+  return [...groupSkuKeys].flatMap((key) => {
     const separator = key.indexOf('|');
     const businessGroup = key.slice(0, separator);
     const sku = key.slice(separator + 1);
     const item = itemBySku.get(sku);
+    if (!item || Number(item.is_stock_item) !== 1) return [];
     const sales = hasReportSales ? (reportSalesBySku.get(key) ?? { quantity: 0, revenue: 0 }) : hasInvoiceSales ? (soldBySku.get(sku) ?? { quantity: 0, revenue: 0 }) : (orderedBySku.get(sku) ?? { quantity: 0, revenue: 0 });
     const reportOrderCount = reportOrdersBySku.get(key)?.size ?? 0;
     const invoiceOrderCount = invoiceOrdersBySku.get(sku)?.size ?? 0;
     const orderOrderCount = orderOrdersBySku.get(sku)?.size ?? 0;
 
-    return {
+    return [{
       sku,
       name: String(item?.item_name ?? item?.name ?? sku),
       category: String(item?.item_group ?? 'Chưa phân loại'),
@@ -1549,7 +1550,7 @@ export async function getErpProductAnalysis(): Promise<ErpProductAnalysisRow[]> 
       revenue: sales.revenue,
       stock: stockByGroupSku.get(key) ?? 0,
       reorderPoint: 0,
-    };
+    }];
   });
 }
 
