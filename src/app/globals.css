@@ -1875,7 +1875,7 @@ button {
 }
 
 .customer-analysis-table-wrap .data-table {
-  min-width: 900px;
+  min-width: 1100px;
 }
 
 .customer-analysis-table-wrap .data-table th {
@@ -1901,6 +1901,60 @@ button {
   font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.customer-order-history-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+ }
+
+.customer-order-preview-item {
+  color: #dfeafc;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.customer-order-toggle {
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  background: rgba(125, 211, 252, 0.08);
+  color: #cfeefe;
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  width: fit-content;
+}
+
+.customer-order-details-row td {
+  background: rgba(15, 23, 42, 0.58);
+  border-top: 1px solid rgba(125, 211, 252, 0.12);
+}
+
+.customer-order-details-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  padding: 10px 6px 4px;
+}
+
+.customer-order-details-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.customer-order-details-item span,
+.customer-order-details-item small {
+  color: var(--muted);
+}
+
+.customer-order-details-item strong {
+  color: #f8fbff;
 }
 
 .customer-ai-panel textarea {

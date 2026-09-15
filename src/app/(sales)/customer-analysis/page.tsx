@@ -5,6 +5,12 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 type Segment = 'VIP – mua nhiều' | 'Khách tiềm năng' | 'Mua đều / ổn định' | 'Khách mới' | 'Giảm mua / ngừng mua';
+type CustomerOrder = {
+  id?: string;
+  date?: string | null;
+  total: number;
+  status?: string;
+};
 type Customer = {
   id: string;
   name: string;
@@ -17,6 +23,7 @@ type Customer = {
   lastOrderAt: string | null;
   daysSinceLastOrder: number | null;
   segment: Segment;
+  orderHistory?: CustomerOrder[];
 };
 type ErpConnectionState = 'checking' | 'connected' | 'disconnected';
 type CustomerGroupKey = 'fashion-q4' | 'fabric-ben-thanh' | 'fabric-q4';
@@ -30,6 +37,7 @@ const customerGroups: Array<{ key: CustomerGroupKey; label: string; match: strin
 
 const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('vi-VN').format(new Date(value)) : 'Chưa có đơn';
+const formatShortDate = (value: string | null) => value ? new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value)) : '—';
 const formatDays = (value: number | null) => value === null ? 'Chưa mua' : `${value} ngày`;
 const formatAiReply = (value: string) => value
   .replace(/^#{1,6}\s*/gm, '')
@@ -56,6 +64,7 @@ export default function CustomerAnalysisPage() {
   const [purchasedSearch, setPurchasedSearch] = useState('');
   const [q4Timeline, setQ4Timeline] = useState('all');
   const [purchasedTimeline, setPurchasedTimeline] = useState('all');
+  const [expandedCustomers, setExpandedCustomers] = useState<Record<string, boolean>>({});
   const groupParam = searchParams.get('group');
   const activeGroup: CustomerGroupKey = customerGroups.some((item) => item.key === groupParam) ? groupParam as CustomerGroupKey : 'fabric-q4';
 
@@ -108,6 +117,11 @@ export default function CustomerAnalysisPage() {
   };
   const allGroupCustomers = useMemo(() => filterBySearch(filterByTimeline(groupCustomers, q4Timeline), q4Search), [groupCustomers, q4Search, q4Timeline]);
   const purchasedCustomers = useMemo(() => filterBySearch(filterByTimeline(groupCustomers.filter((customer) => customer.orderCount > 0), purchasedTimeline), purchasedSearch), [groupCustomers, purchasedSearch, purchasedTimeline]);
+
+  const toggleCustomerDetails = (customerId: string) => {
+    setExpandedCustomers((current) => ({ ...current, [customerId]: !current[customerId] }));
+  };
+
   async function analyzeWithAi() {
     setAiLoading(true);
     setAiSources([]);
@@ -219,15 +233,62 @@ export default function CustomerAnalysisPage() {
             {loading ? <p className="empty-state">Đang tải dữ liệu khách hàng...</p> : (
               <div className="table-wrap customer-analysis-table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>Khách hàng</th><th>Số điện thoại</th><th>Nhóm</th><th>Số đơn</th><th>Tổng mua</th><th>Mua gần nhất</th></tr></thead>
-                  <tbody>{list.items.map((customer) => <tr key={customer.id}>
-                    <td><strong>{customer.name}</strong><small className="customer-row-status">{customer.status}</small></td>
-                    <td>{customer.phone || 'Chưa có'}</td>
-                    <td><span className="customer-segment-badge">{customer.company}</span></td>
-                    <td>{customer.orderCount}</td>
-                    <td>{formatVnd(customer.totalSpent)}</td>
-                    <td>{formatDate(customer.lastOrderAt)}</td>
-                  </tr>)}</tbody>
+                  <thead><tr><th>Khách hàng</th><th>Số điện thoại</th><th>Nhóm</th><th>Số đơn</th><th>Lịch sử mua</th><th>Tần suất mua</th><th>Tổng mua</th></tr></thead>
+                  <tbody>{list.items.map((customer) => {
+                    const validOrderDates = (customer.orderHistory ?? [])
+                      .map((order) => order.date ? new Date(order.date).getTime() : null)
+                      .filter((value): value is number => value !== null)
+                      .sort((first, second) => first - second);
+                    const gaps = validOrderDates.slice(1).map((date, index) => (date - validOrderDates[index]) / 86400000);
+                    const avgGap = gaps.length ? Math.round(gaps.reduce((sum, value) => sum + value, 0) / gaps.length) : 0;
+                    const previewHistory = (customer.orderHistory ?? []).slice(0, 2).map((order) => `${formatShortDate(order.date ?? null)} · ${formatVnd(order.total)}`);
+                    const frequencyText = customer.orderCount > 0
+                      ? (gaps.length ? `${customer.orderCount} lần / ~${avgGap} ngày/lần` : `${customer.orderCount} lần`)
+                      : 'Chưa mua';
+                    const isExpanded = Boolean(expandedCustomers[customer.id]);
+
+                    return <>
+                      <tr key={customer.id}>
+                        <td><strong>{customer.name}</strong><small className="customer-row-status">{customer.status}</small></td>
+                        <td>{customer.phone || 'Chưa có'}</td>
+                        <td><span className="customer-segment-badge">{customer.company}</span></td>
+                        <td>{customer.orderCount}</td>
+                        <td>
+                          <div className="customer-order-history-cell">
+                            {previewHistory.length ? (
+                              <>
+                                {previewHistory.map((item) => <div key={item} className="customer-order-preview-item">{item}</div>)}
+                                {(customer.orderHistory?.length ?? 0) > 2 && (
+                                  <button type="button" className="customer-order-toggle" onClick={() => toggleCustomerDetails(customer.id)}>
+                                    {isExpanded ? 'Thu gọn' : `Xem tất cả ${customer.orderHistory?.length ?? 0} đơn`}
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              <span>Chưa có</span>
+                            )}
+                          </div>
+                        </td>
+                        <td>{frequencyText}</td>
+                        <td>{formatVnd(customer.totalSpent)}</td>
+                      </tr>
+                      {isExpanded && customer.orderHistory && customer.orderHistory.length > 0 && (
+                        <tr key={`${customer.id}-details`} className="customer-order-details-row">
+                          <td colSpan={7}>
+                            <div className="customer-order-details-list">
+                              {customer.orderHistory.map((order) => (
+                                <div key={order.id ?? `${order.date ?? 'unknown'}-${order.total}`} className="customer-order-details-item">
+                                  <span>{formatShortDate(order.date ?? null)}</span>
+                                  <strong>{formatVnd(order.total)}</strong>
+                                  <small>{order.status || 'Đã ghi nhận'}</small>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>;
+                  })}</tbody>
                 </table>
                 {!list.items.length && <p className="empty-state">Không có khách phù hợp bộ lọc.</p>}
               </div>

@@ -8,7 +8,16 @@ export type CustomerSegment = 'VIP – mua nhiều' | 'Khách tiềm năng' | 'M
 type WebCitation = { type?: string; url?: string; title?: string };
 type ResponseOutput = { type?: string; content?: Array<{ type?: string; text?: string; annotations?: WebCitation[] }> };
 
-type CustomerAnalysisInput = { name?: string; company?: string; status?: string; orderCount?: number; totalSpent?: number; lastOrderAt?: string | null; daysSinceLastOrder?: number | null; segment?: string };
+type CustomerOrderHistoryEntry = { id?: string; date?: string | null; total: number; status?: string };
+type CustomerAnalysisInput = { name?: string; company?: string; status?: string; orderCount?: number; totalSpent?: number; lastOrderAt?: string | null; daysSinceLastOrder?: number | null; segment?: string; orderHistory?: CustomerOrderHistoryEntry[] };
+
+function sortOrderHistory(orderHistory: CustomerOrderHistoryEntry[]) {
+  return [...orderHistory].sort((first, second) => {
+    const firstDate = first.date ? new Date(first.date).getTime() : 0;
+    const secondDate = second.date ? new Date(second.date).getTime() : 0;
+    return secondDate - firstDate;
+  });
+}
 
 function getResponseText(output: ResponseOutput[] | undefined) {
   return (output ?? []).flatMap((item) => item.content ?? []).filter((content) => content.type === 'output_text').map((content) => content.text ?? '').join('\n').trim();
@@ -191,10 +200,11 @@ async function getAnalysis() {
   }
 
   const customers = await prisma.customer.findMany({
-    include: { orders: { select: { total: true, createdAt: true, status: true } } },
+    include: { orders: { select: { id: true, total: true, createdAt: true, status: true } } },
     orderBy: { updatedAt: 'desc' },
   });
   const erpCustomerCodes = new Map<string, string>();
+  const orderHistoryByCustomer = new Map<string, CustomerOrderHistoryEntry[]>();
   for (const erpCustomer of erpCustomers) {
     const erpCode = String(erpCustomer.name ?? '').trim().toLowerCase();
     const displayName = String(erpCustomer.customer_name ?? erpCustomer.name ?? '').trim().toLowerCase();
@@ -218,6 +228,15 @@ async function getAnalysis() {
     if (validDate && (!stats.firstOrderAt || validDate < stats.firstOrderAt)) stats.firstOrderAt = validDate;
     if (validDate && (!stats.lastOrderAt || validDate > stats.lastOrderAt)) stats.lastOrderAt = validDate;
     invoiceStats.set(key, stats);
+
+    const history = orderHistoryByCustomer.get(key) ?? [];
+    history.push({
+      id: String(invoice.name ?? `invoice-${key}-${history.length}`),
+      date: validDate ? validDate.toISOString() : null,
+      total: normalizeErpValue(invoice.grand_total),
+      status: String(invoice.status ?? 'Submitted'),
+    });
+    orderHistoryByCustomer.set(key, history);
   }
 
   if (erpCustomers.length) {
@@ -237,6 +256,15 @@ async function getAnalysis() {
       if (validDate && (!stats.firstOrderAt || validDate < stats.firstOrderAt)) stats.firstOrderAt = validDate;
       if (validDate && (!stats.lastOrderAt || validDate > stats.lastOrderAt)) stats.lastOrderAt = validDate;
       orderStats.set(key, stats);
+
+      const customerHistory = orderHistoryByCustomer.get(key) ?? [];
+      customerHistory.push({
+        id: String(order.name ?? `order-${key}-${customerHistory.length}`),
+        date: validDate ? validDate.toISOString() : null,
+        total: normalizeErpValue(order.grand_total),
+        status: String(order.status ?? 'Submitted'),
+      });
+      orderHistoryByCustomer.set(key, customerHistory);
     }
 
     const results = [...orderStats.values()].map((stats) => {
@@ -255,6 +283,7 @@ async function getAnalysis() {
         lastOrderAt: stats.lastOrderAt?.toISOString() ?? null,
         daysSinceLastOrder: stats.lastOrderAt ? Math.floor((Date.now() - stats.lastOrderAt.getTime()) / 86400000) : null,
         segment: getSegment({ value: stats.total, orderCount: stats.count, firstOrderAt: stats.firstOrderAt, lastOrderAt: stats.lastOrderAt, status }),
+        orderHistory: sortOrderHistory(orderHistoryByCustomer.get(`${stats.group}|${stats.code}`) ?? []),
       };
     });
     const resultKeys = new Set(results.map((customer) => customer.id));
@@ -278,6 +307,7 @@ async function getAnalysis() {
         lastOrderAt: null,
         daysSinceLastOrder: null,
         segment: getSegment({ value: 0, orderCount: 0, firstOrderAt: null, lastOrderAt: null, status }),
+        orderHistory: [],
       });
     });
 
@@ -301,6 +331,13 @@ async function getAnalysis() {
     const effectiveLastOrderAt = erpLastOrderAt || lastOrderAt;
     const segment = getSegment({ value, orderCount, firstOrderAt: effectiveFirstOrderAt, lastOrderAt: effectiveLastOrderAt, status: customer.status });
 
+    const orderHistory = orders.map((order) => ({
+      id: order.id,
+      date: order.createdAt.toISOString(),
+      total: Number(order.total ?? 0),
+      status: order.status,
+    }));
+
     return {
       id: customer.id,
       name: customer.name,
@@ -313,6 +350,7 @@ async function getAnalysis() {
       lastOrderAt: effectiveLastOrderAt?.toISOString() ?? null,
       daysSinceLastOrder: effectiveLastOrderAt ? Math.floor((Date.now() - effectiveLastOrderAt.getTime()) / 86400000) : null,
       segment,
+      orderHistory: sortOrderHistory(orderHistory),
     };
   });
 }
