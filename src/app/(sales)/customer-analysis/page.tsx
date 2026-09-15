@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 type Segment = 'VIP – mua nhiều' | 'Khách tiềm năng' | 'Mua đều / ổn định' | 'Khách mới' | 'Giảm mua / ngừng mua';
+type CustomerLifecycle = 'Active' | 'Potential' | 'At Risk' | 'Dormant';
 type CustomerOrder = {
   id?: string;
   date?: string | null;
@@ -23,6 +24,16 @@ type Customer = {
   lastOrderAt: string | null;
   daysSinceLastOrder: number | null;
   segment: Segment;
+  lifecycle: CustomerLifecycle;
+  activeScore: number;
+  potentialScore: number;
+  cadenceDays: number | null;
+  medianCadenceDays: number | null;
+  recent90dOrders: number;
+  repeatRate: number;
+  riskLevel: string;
+  trend: 'new' | 'rising' | 'stable' | 'declining';
+  actionRecommendation: string;
   orderHistory?: CustomerOrder[];
 };
 type ErpConnectionState = 'checking' | 'connected' | 'disconnected';
@@ -64,6 +75,7 @@ export default function CustomerAnalysisPage() {
   const [purchasedSearch, setPurchasedSearch] = useState('');
   const [q4Timeline, setQ4Timeline] = useState('all');
   const [purchasedTimeline, setPurchasedTimeline] = useState('all');
+  const [lifecycleFilter, setLifecycleFilter] = useState<'all' | CustomerLifecycle>('all');
   const [expandedCustomers, setExpandedCustomers] = useState<Record<string, boolean>>({});
   const groupParam = searchParams.get('group');
   const activeGroup: CustomerGroupKey = customerGroups.some((item) => item.key === groupParam) ? groupParam as CustomerGroupKey : 'fabric-q4';
@@ -93,18 +105,27 @@ export default function CustomerAnalysisPage() {
   }
 
   useEffect(() => {
-    loadCustomers();
+    const initialLoad = window.setTimeout(() => loadCustomers(), 0);
+    const refreshTimer = window.setInterval(() => loadCustomers(), 5 * 60 * 1000);
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.clearInterval(refreshTimer);
+    };
   }, []);
 
   useEffect(() => {
-    setAiReply('');
-    setAiMode('');
-    setAiSources([]);
+    const resetAi = window.setTimeout(() => {
+      setAiReply('');
+      setAiMode('');
+      setAiSources([]);
+    }, 0);
+    return () => window.clearTimeout(resetAi);
   }, [activeGroup]);
 
   const selectedGroup = customerGroups.find((group) => group.key === activeGroup) ?? customerGroups[2];
   const groupCustomers = useMemo(() => customers.filter((customer) => normalizeGroupName(customer.company).includes(selectedGroup.match)), [customers, selectedGroup.match]);
-  const visibleCustomers = groupCustomers;
+  const visibleCustomers = lifecycleFilter === 'all' ? groupCustomers : groupCustomers.filter((customer) => customer.lifecycle === lifecycleFilter);
+  const lifecycleSummary = useMemo(() => (['Active', 'Potential', 'At Risk', 'Dormant'] as CustomerLifecycle[]).map((lifecycle) => ({ lifecycle, count: groupCustomers.filter((customer) => customer.lifecycle === lifecycle).length })), [groupCustomers]);
   const filterByTimeline = (items: Customer[], timeline: string) => {
     if (timeline === 'all') return items;
     const days = Number(timeline);
@@ -115,8 +136,25 @@ export default function CustomerAnalysisPage() {
     if (!query) return items;
     return items.filter((customer) => `${customer.name} ${customer.company} ${customer.status}`.toLowerCase().includes(query));
   };
-  const allGroupCustomers = useMemo(() => filterBySearch(filterByTimeline(groupCustomers, q4Timeline), q4Search), [groupCustomers, q4Search, q4Timeline]);
-  const purchasedCustomers = useMemo(() => filterBySearch(filterByTimeline(groupCustomers.filter((customer) => customer.orderCount > 0), purchasedTimeline), purchasedSearch), [groupCustomers, purchasedSearch, purchasedTimeline]);
+  const allGroupCustomers = useMemo(() => filterBySearch(filterByTimeline(visibleCustomers, q4Timeline), q4Search), [visibleCustomers, q4Search, q4Timeline]);
+  const purchasedCustomers = useMemo(() => filterBySearch(filterByTimeline(visibleCustomers.filter((customer) => customer.orderCount > 0), purchasedTimeline), purchasedSearch), [visibleCustomers, purchasedSearch, purchasedTimeline]);
+  const warningCustomers = useMemo(() => visibleCustomers
+    .filter((customer) => customer.lifecycle === 'At Risk' || customer.lifecycle === 'Dormant')
+    .sort((first, second) => (second.potentialScore - first.potentialScore) || (second.totalSpent - first.totalSpent))
+    .slice(0, 12), [visibleCustomers]);
+
+  const getWarningReason = (customer: Customer) => {
+    const reasons: string[] = [];
+    if (customer.lifecycle === 'Dormant') {
+      reasons.push(customer.orderCount === 0 ? 'Chưa phát sinh đơn' : `${formatDays(customer.daysSinceLastOrder)} chưa mua`);
+    }
+    if (customer.lifecycle === 'At Risk' && customer.cadenceDays !== null && customer.daysSinceLastOrder !== null) {
+      reasons.push(`Đã ${customer.daysSinceLastOrder} ngày, dài hơn mức trung bình ${customer.cadenceDays} ngày`);
+    }
+    if (customer.trend === 'declining') reasons.push('Khoảng cách các lần mua đang tăng');
+    if (customer.recent90dOrders === 0 && customer.orderCount > 0) reasons.push('Không có đơn trong 90 ngày');
+    return reasons.length ? reasons.join(' · ') : 'Điểm hoạt động thấp, cần kiểm tra lại nhu cầu';
+  };
 
   const toggleCustomerDetails = (customerId: string) => {
     setExpandedCustomers((current) => ({ ...current, [customerId]: !current[customerId] }));
@@ -130,7 +168,21 @@ export default function CustomerAnalysisPage() {
         .filter((customer) => customer.orderCount > 0 || customer.segment === 'Giảm mua / ngừng mua' || customer.segment === 'Khách tiềm năng')
         .sort((first, second) => second.totalSpent - first.totalSpent)
         .slice(0, 300)
-        .map(({ name, company, status, orderCount, totalSpent, lastOrderAt, daysSinceLastOrder, segment }) => ({ name, company, status, orderCount, totalSpent, lastOrderAt, daysSinceLastOrder, segment }));
+        .map(({ name, company, status, orderCount, totalSpent, lastOrderAt, daysSinceLastOrder, segment, orderHistory }) => ({
+          name,
+          company,
+          status,
+          orderCount,
+          totalSpent,
+          lastOrderAt,
+          daysSinceLastOrder,
+          segment,
+          orderHistory: (orderHistory ?? []).slice(0, 20).map((order) => ({
+            date: order.date,
+            total: order.total,
+            status: order.status,
+          })),
+        }));
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 30000);
       const prompt = aiPromptRef.current?.value.trim() || 'Hãy phân tích nhóm khách hàng đang giảm mua hoặc ngừng mua trước, sau đó đề xuất cách Sale tiếp cận từng nhóm.';
@@ -160,13 +212,13 @@ export default function CustomerAnalysisPage() {
 
       const response = await fetch('/api/customer-analysis/import', { method: 'POST', body: formData });
       const payload = await response.json();
-      setImportMessage(payload.message ?? 'Import khách hàng hoàn tất.');
+      setImportMessage(payload.message ?? 'Nhập khách hàng hoàn tất.');
 
       if (response.ok) {
         await loadCustomers();
       }
     } catch {
-      setImportMessage('Không thể import dữ liệu khách hàng.');
+      setImportMessage('Không thể nhập dữ liệu khách hàng.');
     } finally {
       setImporting(false);
       event.target.value = '';
@@ -177,14 +229,14 @@ export default function CustomerAnalysisPage() {
     <main className="sales-analysis-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">CUSTOMER INTELLIGENCE</p>
+          <p className="eyebrow">PHÂN TÍCH KHÁCH HÀNG</p>
           <h2>Phân tích khách hàng</h2>
           <p className="page-subtitle">Theo dõi giá trị, độ gần gũi và rủi ro từng nhóm khách để ưu tiên chăm sóc đúng đối tượng.</p>
         </div>
         <div className="customer-header-actions">
           <label className="import-trigger">
             <input type="file" accept=".csv,.xlsx,.xls" onChange={handleImport} />
-            {importing ? 'Đang import...' : 'Import Excel / CRM'}
+            {importing ? 'Đang nhập...' : 'Nhập Excel / CRM'}
           </label>
           <Link href="/sales-plan" className="ghost-btn">Về báo cáo kế hoạch</Link>
         </div>
@@ -206,6 +258,16 @@ export default function CustomerAnalysisPage() {
         <small>{loading ? (loadProgress < 28 ? 'Đang xác thực nguồn dữ liệu...' : loadProgress < 88 ? 'Đang đồng bộ khách hàng và hóa đơn từ ERP...' : 'Đang hoàn tất danh sách...') : erpConnection === 'connected' ? `Dữ liệu ${selectedGroup.label} được đồng bộ từ ERP.` : 'Đang hiển thị dữ liệu đã lưu gần nhất.'}</small>
       </section>
 
+      <section className="customer-intelligence-summary" aria-label="Tổng quan phân loại khách hàng">
+        {lifecycleSummary.map(({ lifecycle, count }) => (
+          <button type="button" key={lifecycle} className={`customer-summary-card customer-summary-${lifecycle.toLowerCase().replace(' ', '-')}${lifecycleFilter === lifecycle ? ' is-selected' : ''}`} onClick={() => setLifecycleFilter(current => current === lifecycle ? 'all' : lifecycle)}>
+            <span>{lifecycle === 'Active' ? 'Đang hoạt động' : lifecycle === 'Potential' ? 'Tiềm năng' : lifecycle === 'At Risk' ? 'Có nguy cơ giảm' : 'Không hoạt động'}</span>
+            <strong>{count}</strong>
+            <small>{lifecycleFilter === lifecycle ? 'Đang lọc' : 'Nhấn để lọc'}</small>
+          </button>
+        ))}
+      </section>
+
       <section className="customer-dual-table-grid">
         {[
           { title: `Tất cả khách hàng ${selectedGroup.label}`, note: `Toàn bộ hồ sơ thuộc nhóm ${selectedGroup.label} trên ERP`, items: allGroupCustomers, search: q4Search, setSearch: setQ4Search, timeline: q4Timeline, setTimeline: setQ4Timeline },
@@ -214,7 +276,7 @@ export default function CustomerAnalysisPage() {
           <section className="panel customer-table-panel customer-list-panel" key={list.title}>
             <div className="panel-header">
               <div>
-                <p className="eyebrow">CRM SIGNALS</p>
+                <p className="eyebrow">TÍN HIỆU CRM</p>
                 <h3>{list.title}</h3>
                 <span className="panel-note">{list.note}</span>
               </div>
@@ -229,11 +291,18 @@ export default function CustomerAnalysisPage() {
                 <option value="180">Mua trong 6 tháng</option>
                 <option value="365">Mua trong 12 tháng</option>
               </select>
+              <select value={lifecycleFilter} onChange={(event) => setLifecycleFilter(event.target.value as 'all' | CustomerLifecycle)} aria-label="Lọc nhóm khách hàng">
+                <option value="all">Tất cả phân loại</option>
+                <option value="Active">Đang hoạt động</option>
+                <option value="Potential">Tiềm năng</option>
+                <option value="At Risk">Có nguy cơ giảm</option>
+                <option value="Dormant">Không hoạt động</option>
+              </select>
             </div>
             {loading ? <p className="empty-state">Đang tải dữ liệu khách hàng...</p> : (
               <div className="table-wrap customer-analysis-table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>Khách hàng</th><th>Số điện thoại</th><th>Nhóm</th><th>Số đơn</th><th>Lịch sử mua</th><th>Tần suất mua</th><th>Tổng mua</th></tr></thead>
+                  <thead><tr><th>Khách hàng</th><th>Phân loại</th><th>Điểm</th><th>Số điện thoại</th><th>Nhóm</th><th>Số đơn</th><th>Lịch sử mua</th><th>Nhịp mua</th><th>Hành động đề xuất</th><th>Tổng mua</th></tr></thead>
                   <tbody>{list.items.map((customer) => {
                     const validOrderDates = (customer.orderHistory ?? [])
                       .map((order) => order.date ? new Date(order.date).getTime() : null)
@@ -250,6 +319,8 @@ export default function CustomerAnalysisPage() {
                     return <>
                       <tr key={customer.id}>
                         <td><strong>{customer.name}</strong><small className="customer-row-status">{customer.status}</small></td>
+                        <td><span className={`customer-lifecycle-badge customer-lifecycle-${customer.lifecycle.toLowerCase().replace(' ', '-')}`}>{customer.lifecycle === 'Active' ? 'Đang hoạt động' : customer.lifecycle === 'Potential' ? 'Tiềm năng' : customer.lifecycle === 'At Risk' ? 'Có nguy cơ giảm' : 'Không hoạt động'}</span><small className="customer-row-status">Rủi ro: {customer.riskLevel}</small></td>
+                        <td><div className="customer-score-cell"><strong>Hoạt động {customer.activeScore}</strong><strong>Tiềm năng {customer.potentialScore}</strong></div><small className="customer-row-status">{customer.trend === 'rising' ? 'Đang tăng' : customer.trend === 'declining' ? 'Đang giảm' : customer.trend === 'new' ? 'Khách mới' : 'Ổn định'}</small></td>
                         <td>{customer.phone || 'Chưa có'}</td>
                         <td><span className="customer-segment-badge">{customer.company}</span></td>
                         <td>{customer.orderCount}</td>
@@ -269,12 +340,13 @@ export default function CustomerAnalysisPage() {
                             )}
                           </div>
                         </td>
-                        <td>{frequencyText}</td>
+                        <td><strong>{frequencyText}</strong><small className="customer-row-status">90 ngày: {customer.recent90dOrders} đơn · Lặp lại: {customer.repeatRate}%</small></td>
+                        <td><span className="customer-action-text">{customer.actionRecommendation}</span></td>
                         <td>{formatVnd(customer.totalSpent)}</td>
                       </tr>
                       {isExpanded && customer.orderHistory && customer.orderHistory.length > 0 && (
                         <tr key={`${customer.id}-details`} className="customer-order-details-row">
-                          <td colSpan={7}>
+                          <td colSpan={10}>
                             <div className="customer-order-details-list">
                               {customer.orderHistory.map((order) => (
                                 <div key={order.id ?? `${order.date ?? 'unknown'}-${order.total}`} className="customer-order-details-item">
@@ -297,10 +369,38 @@ export default function CustomerAnalysisPage() {
         ))}
       </section>
 
+      <section className="panel customer-warning-panel" aria-labelledby="customer-warning-title">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">CẢNH BÁO ƯU TIÊN</p>
+            <h3 id="customer-warning-title">Bảng cảnh báo khách hàng</h3>
+            <span className="panel-note">Cảnh báo dựa trên nhịp mua lịch sử, xu hướng và số ngày chưa mua, không chỉ dựa vào tổng tiền.</span>
+          </div>
+          <span className="live-status">{warningCustomers.length} cần chú ý</span>
+        </div>
+        {loading ? <p className="empty-state">Đang phân tích tín hiệu cảnh báo...</p> : warningCustomers.length ? (
+          <div className="table-wrap customer-warning-table-wrap">
+            <table className="data-table">
+              <thead><tr><th>Khách hàng</th><th>Mức cảnh báo</th><th>Lý do</th><th>Lần mua gần nhất</th><th>Điểm</th><th>Đề xuất xử lý</th></tr></thead>
+              <tbody>{warningCustomers.map((customer) => (
+                <tr key={customer.id}>
+                  <td><strong>{customer.name}</strong><small className="customer-row-status">{customer.company}</small></td>
+                  <td><span className={`customer-warning-badge customer-warning-${customer.riskLevel === 'Cao' ? 'high' : 'medium'}`}>{customer.riskLevel}</span><small className="customer-row-status">{customer.lifecycle === 'Dormant' ? 'Không hoạt động' : 'Có nguy cơ giảm mua'}</small></td>
+                  <td><span className="customer-warning-reason">{getWarningReason(customer)}</span></td>
+                  <td>{formatDate(customer.lastOrderAt)}<small className="customer-row-status">{formatDays(customer.daysSinceLastOrder)}</small></td>
+                  <td><div className="customer-score-cell"><strong>Hoạt động {customer.activeScore}</strong><strong>Tiềm năng {customer.potentialScore}</strong></div></td>
+                  <td><span className="customer-action-text">{customer.actionRecommendation}</span></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        ) : <p className="empty-state">Chưa có cảnh báo trong nhóm khách hàng đang chọn.</p>}
+      </section>
+
       <section className="panel customer-ai-panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">AI CRM ADVISOR</p>
+            <p className="eyebrow">CỐ VẤN AI CRM</p>
             <h3>Phân tích AI cho khách hàng</h3>
           </div>
           <span className="live-status">Đang dùng {selectedGroup.label}</span>
@@ -317,7 +417,7 @@ export default function CustomerAnalysisPage() {
               <button className="primary-btn customer-ai-button" onClick={analyzeWithAi} disabled={aiLoading || loading}>{aiLoading ? 'Đang phân tích...' : 'Phân tích khách hàng'}</button>
             </div>
             <div className="customer-ai-result-column">
-              <div className="product-ai-result-heading"><span className="customer-ai-column-label">Kết quả trả lời</span>{aiMode && <span className="product-ai-mode">{aiMode === 'web+erp' ? 'Web + ERP' : 'ERP'}</span>}</div>
+              <div className="product-ai-result-heading"><span className="customer-ai-column-label">Kết quả trả lời</span>{aiMode && <span className="product-ai-mode">{aiMode === 'web+erp' ? 'Thị trường + ERP' : 'ERP'}</span>}</div>
               <div className={`customer-ai-reply ${!aiReply ? 'is-empty' : ''}`}>
                 {aiLoading ? (
                   <div className="customer-ai-loading" role="status" aria-live="polite">
