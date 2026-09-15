@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import AttendanceFilters from '@/components/attendance-filters';
+import AttendanceNotes from '@/components/attendance-notes';
 import { getSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +33,15 @@ type AttendancePair = {
   department: string;
   checkIn?: string;
   checkOut?: string;
+};
+
+type AttendanceNoteRow = {
+  id: string;
+  date: string;
+  name: string;
+  department: string;
+  type: string;
+  reason: string;
 };
 
 function parseCsvLine(line: string) {
@@ -182,6 +193,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     }
   });
   const members = [...memberLabels.values()].sort((left, right) => left.localeCompare(right, 'vi'));
+  const departments = [...new Set(activeRows.map((row) => row.department))].sort((left, right) => left.localeCompare(right, 'vi'));
   const filteredRows = activeRows.filter((row) => {
     const matchesMember = !filters.member || normalizePersonName(row.name) === normalizePersonName(filters.member);
     const matchesDate = filterMode !== 'date' || !selectedDate || row.date === selectedDate;
@@ -268,6 +280,17 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     .map(([key, totalMinutes]) => ({ name: memberLabels.get(key) ?? key, totalMinutes }))
     .sort((left, right) => right.totalMinutes - left.totalMinutes);
   const maxLateMinutes = lateByMember[0]?.totalMinutes ?? 1;
+  const noteWhere = filterMode === 'date' && selectedDate
+    ? { date: selectedDate }
+    : {
+      ...(filters.from ? { date: { gte: filters.from, ...(filters.to ? { lte: filters.to } : {}) } } : {}),
+      ...(!filters.from && filters.to ? { date: { lte: filters.to } } : {}),
+    };
+  const attendanceNotes: AttendanceNoteRow[] = await prisma.attendanceNote.findMany({
+    where: noteWhere,
+    orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+    select: { id: true, date: true, name: true, department: true, type: true, reason: true },
+  });
 
   return (
     <main className="page-layout">
@@ -333,6 +356,15 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
               )}
             </section>
           </div>
+
+          <AttendanceNotes
+            notes={attendanceNotes}
+            members={members}
+            departments={departments}
+            defaultDate={selectedDate ?? getTodayDate()}
+            defaultFrom={filters.from}
+            defaultTo={filters.to}
+          />
 
           <section className="panel late-arrivals-panel">
             <div className="panel-header">
