@@ -38,7 +38,6 @@ type Customer = {
 };
 type ErpConnectionState = 'checking' | 'connected' | 'disconnected';
 type CustomerGroupKey = 'fashion-q4' | 'fabric-ben-thanh' | 'fabric-q4';
-type AnalysisMode = 'erp' | 'web+erp';
 
 const customerGroups: Array<{ key: CustomerGroupKey; label: string; match: string }> = [
   { key: 'fashion-q4', label: 'Thời trang Quận 4', match: 'thoi trang quan 4' },
@@ -66,7 +65,6 @@ export default function CustomerAnalysisPage() {
   const [loadProgress, setLoadProgress] = useState(0);
   const [erpConnection, setErpConnection] = useState<ErpConnectionState>('checking');
   const [aiLoading, setAiLoading] = useState(false);
-  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('erp');
   const [aiMode, setAiMode] = useState('');
   const [aiSources, setAiSources] = useState<Array<{ title: string; url: string }>>([]);
   const [importing, setImporting] = useState(false);
@@ -186,7 +184,7 @@ export default function CustomerAnalysisPage() {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 30000);
       const prompt = aiPromptRef.current?.value.trim() || 'Hãy phân tích nhóm khách hàng đang giảm mua hoặc ngừng mua trước, sau đó đề xuất cách Sale tiếp cận từng nhóm.';
-      const response = await fetch('/api/customer-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, customers: compactCustomers, businessGroup: selectedGroup.label, analysisMode }), signal: controller.signal });
+      const response = await fetch('/api/customer-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, customers: compactCustomers, businessGroup: selectedGroup.label, analysisMode: 'erp' }), signal: controller.signal });
       window.clearTimeout(timeout);
       const payload = await response.json();
       setAiReply(formatAiReply(response.ok ? (payload.reply ?? 'AI chưa trả về kết quả.') : (payload.message ?? payload.reply ?? 'Không thể kết nối AI.')));
@@ -408,16 +406,12 @@ export default function CustomerAnalysisPage() {
           <div className="customer-ai-workspace">
             <div className="customer-ai-input-column">
               <span className="customer-ai-column-label">Yêu cầu phân tích</span>
-              <div className="product-analysis-mode" role="group" aria-label="Chọn nguồn phân tích khách hàng">
-                <button type="button" className={analysisMode === 'erp' ? 'active' : ''} onClick={() => { setAnalysisMode('erp'); setAiReply(''); setAiSources([]); }}>Nội bộ GUSA</button>
-                <button type="button" className={analysisMode === 'web+erp' ? 'active' : ''} onClick={() => { setAnalysisMode('web+erp'); setAiReply(''); setAiSources([]); }}>ERP + thị trường</button>
-              </div>
-              <small className="product-analysis-mode-note">{analysisMode === 'erp' ? 'AI chỉ dùng hồ sơ khách và lịch sử mua hàng trong ERP GUSA.' : 'AI tìm xu hướng thị trường rồi đối chiếu với dữ liệu khách hàng ERP.'}</small>
+              <small className="product-analysis-mode-note">AI chỉ dùng hồ sơ khách và lịch sử mua hàng trong ERP GUSA.</small>
               <textarea ref={aiPromptRef} defaultValue="Hãy phân tích nhóm khách hàng đang giảm mua hoặc ngừng mua trước, sau đó đề xuất cách Sale tiếp cận từng nhóm." placeholder="Bạn muốn AI phân tích nhóm khách nào?" />
               <button className="primary-btn customer-ai-button" onClick={analyzeWithAi} disabled={aiLoading || loading}>{aiLoading ? 'Đang phân tích...' : 'Phân tích khách hàng'}</button>
             </div>
             <div className="customer-ai-result-column">
-              <div className="product-ai-result-heading"><span className="customer-ai-column-label">Kết quả trả lời</span>{aiMode && <span className="product-ai-mode">{aiMode === 'web+erp' ? 'Thị trường + ERP' : 'ERP'}</span>}</div>
+              <div className="product-ai-result-heading"><span className="customer-ai-column-label">Kết quả trả lời</span>{aiMode && <span className="product-ai-mode">ERP</span>}</div>
               <div className={`customer-ai-reply ${!aiReply ? 'is-empty' : ''}`}>
                 {aiLoading ? (
                   <div className="customer-ai-loading" role="status" aria-live="polite">

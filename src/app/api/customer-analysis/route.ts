@@ -268,6 +268,38 @@ function buildCustomerErpSummary(customers: CustomerAnalysisInput[]) {
   };
 }
 
+function buildWebAnalysisCustomers(customers: CustomerAnalysisInput[]) {
+  return [...customers]
+    .sort((first, second) => (Number(second.potentialScore ?? 0) - Number(first.potentialScore ?? 0)) || (Number(second.totalSpent ?? 0) - Number(first.totalSpent ?? 0)))
+    .slice(0, 100)
+    .map((customer) => ({
+      name: String(customer.name ?? 'Chưa đặt tên'),
+      company: String(customer.company ?? 'Chưa phân loại'),
+      status: String(customer.status ?? ''),
+      orderCount: Number(customer.orderCount ?? 0),
+      totalSpent: Number(customer.totalSpent ?? 0),
+      lastOrderAt: customer.lastOrderAt ?? null,
+      daysSinceLastOrder: customer.daysSinceLastOrder ?? null,
+      segment: String(customer.segment ?? 'Chưa phân loại'),
+      cadenceDays: customer.cadenceDays ?? null,
+      activeScore: customer.activeScore,
+      potentialScore: customer.potentialScore,
+      trend: customer.trend,
+    }));
+}
+
+function buildWebCadenceSummary(customers: ReturnType<typeof buildWebAnalysisCustomers>) {
+  return customers.map((customer) => ({
+    name: customer.name,
+    orderCount: customer.orderCount,
+    cadenceDays: customer.cadenceDays,
+    recencyDays: customer.daysSinceLastOrder,
+    trend: customer.trend,
+    activeScore: customer.activeScore,
+    potentialScore: customer.potentialScore,
+  }));
+}
+
 function normalizeStatus(status: string) {
   return status.toLowerCase();
 }
@@ -598,13 +630,15 @@ export async function POST(request: Request) {
 
     if (analysisMode === 'web+erp') {
       const erpSummary = buildCustomerErpSummary(customers);
+      const webCustomers = buildWebAnalysisCustomers(customers);
+      const webCadenceSummary = buildWebCadenceSummary(webCustomers);
       const webResponse = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: process.env.OPENAI_WEB_MODEL || 'gpt-4.1-mini',
-          instructions: `Bạn là chuyên gia CRM và chiến lược marketing ngành thời trang và vải linen của GUSA tại Việt Nam. ${businessScope} Trả lời hoàn toàn bằng tiếng Việt. ERP là nguồn sự thật về khách hàng GUSA; web chỉ cung cấp bối cảnh thị trường. Không được chuyển khách của chi nhánh vải thành khách mua quần áo hoặc đề xuất sai phạm vi. Bắt buộc nghiên cứu nhiều nguồn web độc lập, ưu tiên nguồn mới và đáng tin cậy đúng phạm vi chi nhánh. Chủ động chọn khách hàng, phân khúc và số liệu ERP thực sự liên quan. Mỗi chiến lược phải có căn cứ ERP định lượng, căn cứ thị trường, hành động và KPI. Đặc biệt, khi đánh giá "giảm mua" hay "tần suất mua", hãy dựa trên chu kỳ mua lịch sử, không chỉ nhìn khoảng cách từ lần cuối mua đến nay. Hãy so sánh nhịp mua trung bình/median trong lịch sử với khoảng cách gần nhất để xác định khách thực sự chậm hơn nhịp cũ hay chỉ mua theo chu kỳ bình thường. Nếu dữ liệu không đủ phải nói rõ. Không đưa lời khuyên chung chung, không bịa số và không lấy số web thay cho số ERP.`,
-          input: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nPHẠM VI KHÁCH HÀNG BẮT BUỘC: ${businessScope}\nTÓM TẮT KPI ERP ĐÃ TÍNH:\n${JSON.stringify(erpSummary)}\nTẦN SUẤT MUA THEO CHU KỲ LỊCH SỬ:\n${JSON.stringify(cadenceSummary)}\nDỮ LIỆU KHÁCH HÀNG ERP CHI TIẾT:\n${JSON.stringify(customers)}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Hãy trả lời theo cấu trúc: 1) Chẩn đoán khách hàng từ KPI ERP; 2) Tần suất mua thực tế theo chu kỳ lịch sử và nhận biết khách đang giảm/đứt nhịp; 3) Xu hướng thị trường đúng phạm vi chi nhánh có nguồn; 4) Chiến lược có căn cứ ERP, căn cứ thị trường, hành động và KPI; 5) Kế hoạch 30/60/90 ngày; 6) Danh sách khách/phân khúc cần xử lý trong 7 ngày.`,
+          instructions: `Bạn là chuyên gia CRM và chiến lược marketing ngành thời trang và vải linen của GUSA tại Việt Nam. ${businessScope} Trả lời hoàn toàn bằng tiếng Việt. ERP là nguồn sự thật về khách hàng GUSA; web chỉ cung cấp bối cảnh thị trường. Không được chuyển khách của chi nhánh vải thành khách mua quần áo hoặc đề xuất sai phạm vi. Bắt buộc nghiên cứu nhiều nguồn web độc lập, ưu tiên nguồn mới và đáng tin cậy đúng phạm vi chi nhánh. Chủ động chọn khách hàng, phân khúc và số liệu ERP thực sự liên quan. Mỗi chiến lược phải có căn cứ ERP định lượng, căn cứ thị trường, hành động và KPI. Khi đánh giá giảm mua hoặc tần suất mua, hãy dựa trên khoảng cách mua trung bình trong lịch sử và khoảng cách hiện tại, không chỉ nhìn số ngày từ lần cuối mua. Nếu dữ liệu không đủ phải nói rõ. Không đưa lời khuyên chung chung, không bịa số và không lấy số web thay cho số ERP.`,
+          input: `${prompt}\n\nCHI NHÁNH GUSA: ${businessGroup}\nPHẠM VI KHÁCH HÀNG BẮT BUỘC: ${businessScope}\nTÓM TẮT KPI ERP ĐÃ TÍNH:\n${JSON.stringify(erpSummary)}\nTÓM TẮT NHỊP MUA (tối đa 100 khách ưu tiên):\n${JSON.stringify(webCadenceSummary)}\nDỮ LIỆU KHÁCH HÀNG ERP TÓM TẮT (tối đa 100 khách, không bao gồm lịch sử từng đơn):\n${JSON.stringify(webCustomers)}\n\nNgày phân tích: ${new Date().toISOString().slice(0, 10)}. Hãy trả lời theo cấu trúc: 1) Chẩn đoán khách hàng từ KPI ERP; 2) Tần suất mua thực tế và khách đang giảm/đứt nhịp; 3) Xu hướng thị trường đúng phạm vi chi nhánh có nguồn; 4) Chiến lược có căn cứ ERP, căn cứ thị trường, hành động và KPI; 5) Kế hoạch 30/60/90 ngày; 6) Danh sách khách/phân khúc cần xử lý trong 7 ngày.`,
           tools: [{ type: 'web_search', search_context_size: 'medium', user_location: { type: 'approximate', country: 'VN', city: 'Ho Chi Minh City', timezone: 'Asia/Ho_Chi_Minh' } }],
           tool_choice: 'required',
           include: ['web_search_call.action.sources'],

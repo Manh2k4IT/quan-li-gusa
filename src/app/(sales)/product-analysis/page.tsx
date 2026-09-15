@@ -19,7 +19,6 @@ type ProductRow = {
 
 type SortKey = 'revenue' | 'soldQuantity' | 'orderCount' | 'stock';
 type ProductGroupKey = 'fashion-q4' | 'fabric-ben-thanh' | 'fabric-q4';
-type AnalysisMode = 'erp' | 'web+erp';
 type ErpConnectionState = 'checking' | 'connected' | 'disconnected';
 
 const productGroups: Array<{ key: ProductGroupKey; label: string }> = [
@@ -47,7 +46,6 @@ export default function ProductAnalysisPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiMode, setAiMode] = useState('');
   const [aiSources, setAiSources] = useState<Array<{ title: string; url: string }>>([]);
-  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('erp');
   const groupParam = searchParams.get('group');
   const activeGroup: ProductGroupKey = productGroups.some((item) => item.key === groupParam) ? groupParam as ProductGroupKey : 'fabric-q4';
 
@@ -113,7 +111,7 @@ export default function ProductAnalysisPage() {
       const response = await fetch('/api/product-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, businessGroup: selectedGroup.label, products: compactProducts, analysisMode }),
+        body: JSON.stringify({ prompt, businessGroup: selectedGroup.label, products: compactProducts, analysisMode: 'erp' }),
         signal: controller.signal,
       });
       window.clearTimeout(timeout);
@@ -203,16 +201,12 @@ export default function ProductAnalysisPage() {
         <div className="customer-ai-workspace">
           <div className="customer-ai-input-column">
             <span className="customer-ai-column-label">Yêu cầu phân tích</span>
-            <div className="product-analysis-mode" role="group" aria-label="Chọn nguồn phân tích">
-              <button type="button" className={analysisMode === 'erp' ? 'active' : ''} onClick={() => { setAnalysisMode('erp'); setAiReply(''); setAiSources([]); }}>Nội bộ GUSA</button>
-              <button type="button" className={analysisMode === 'web+erp' ? 'active' : ''} onClick={() => { setAnalysisMode('web+erp'); setAiReply(''); setAiSources([]); }}>ERP + thị trường</button>
-            </div>
-            <small className="product-analysis-mode-note">{analysisMode === 'erp' ? 'AI chỉ dùng doanh thu, lượng bán và tồn kho trong ERP GUSA.' : 'AI tìm dữ liệu web mới nhất rồi đối chiếu với dữ liệu ERP GUSA.'}</small>
+            <small className="product-analysis-mode-note">AI chỉ dùng doanh thu, lượng bán và tồn kho trong ERP GUSA.</small>
             <textarea ref={aiPromptRef} defaultValue="Phân tích sản phẩm bán tốt, sản phẩm bán chậm, tồn kho cần chú ý và đề xuất hành động cụ thể." placeholder="Bạn muốn AI phân tích sản phẩm như thế nào?" />
             <button className="primary-btn customer-ai-button" onClick={analyzeWithAi} disabled={aiLoading || loading || !groupProducts.length}>{aiLoading ? 'Đang phân tích...' : 'Phân tích sản phẩm'}</button>
           </div>
           <div className="customer-ai-result-column">
-            <div className="product-ai-result-heading"><span className="customer-ai-column-label">Kết quả trả lời</span>{aiMode && <span className="product-ai-mode">{aiMode === 'web+erp' ? 'Web + ERP' : aiMode === 'web' ? 'Web' : aiMode === 'erp' ? 'ERP' : 'Hội thoại'}</span>}</div>
+            <div className="product-ai-result-heading"><span className="customer-ai-column-label">Kết quả trả lời</span>{aiMode && <span className="product-ai-mode">ERP</span>}</div>
             <div className={`customer-ai-reply ${!aiReply ? 'is-empty' : ''}`}>
               {aiLoading ? <div className="customer-ai-loading" role="status" aria-live="polite"><span className="customer-ai-spinner" aria-hidden="true" /><div><strong>Đang phân tích dữ liệu sản phẩm...</strong><small>AI đang đọc doanh thu, lượng bán và tồn kho ERP.</small></div></div> : aiReply || 'Kết quả phân tích sản phẩm sẽ hiển thị ở đây.'}
             </div>
