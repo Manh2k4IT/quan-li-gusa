@@ -2993,6 +2993,7 @@ button {
 .attendance-note-type-leave { background: rgba(96, 165, 250, 0.15); color: #bfdbfe; }
 .attendance-note-type-late { background: rgba(251, 191, 36, 0.15); color: #fde68a; }
 .attendance-note-type-early { background: rgba(251, 146, 60, 0.15); color: #fed7aa; }
+.attendance-note-type-other { background: rgba(168, 85, 247, 0.15); color: #e9d5ff; }
 
 .attendance-note-delete {
   border: 0;

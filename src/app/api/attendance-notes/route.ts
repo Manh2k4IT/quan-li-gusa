@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-const noteTypes = new Set(['Nghỉ phép', 'Đi trễ', 'Về sớm']);
+const noteTypes = new Set(['Nghỉ phép', 'Đi trễ', 'Về sớm', 'Lý do khác']);
 
 function canManageAttendance(session: ReturnType<typeof getSession>) {
   return Boolean(session && (session.role === 'CEO' || session.role === 'MANAGER'));

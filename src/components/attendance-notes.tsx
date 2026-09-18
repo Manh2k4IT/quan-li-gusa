@@ -12,6 +12,13 @@ type AttendanceNote = {
   reason: string;
 };
 
+function getNoteTypeClass(type: string) {
+  if (type === 'Nghỉ phép') return 'leave';
+  if (type === 'Đi trễ') return 'late';
+  if (type === 'Về sớm') return 'early';
+  return 'other';
+}
+
 type AttendanceNotesProps = {
   notes: AttendanceNote[];
   members: string[];
@@ -68,14 +75,14 @@ export default function AttendanceNotes({ notes, members, departments, defaultDa
         <label>Ngày<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
         <label>Nhân sự<input list="attendance-member-suggestions" value={name} onChange={(event) => setName(event.target.value)} placeholder="Nhập tên nhân sự..." /><datalist id="attendance-member-suggestions">{members.map((member) => <option key={member} value={member} />)}</datalist></label>
         <label>Phòng ban<select value={department} onChange={(event) => setDepartment(event.target.value)}><option value="">Chọn phòng ban</option>{departments.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-        <label>Loại<select value={type} onChange={(event) => setType(event.target.value)}><option>Nghỉ phép</option><option>Đi trễ</option><option>Về sớm</option></select></label>
+        <label>Loại<select value={type} onChange={(event) => setType(event.target.value)}><option>Nghỉ phép</option><option>Đi trễ</option><option>Về sớm</option><option>Lý do khác</option></select></label>
         <label className="attendance-note-reason">Lý do<input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Nhập lý do cụ thể..." /></label>
         <button type="button" className="primary-btn" onClick={saveNote} disabled={saving || !name || !reason.trim()}>{saving ? 'Đang lưu...' : 'Lưu ghi chú'}</button>
       </div>
       {message && <p className="attendance-note-message">{message}</p>}
       {notes.length ? <div className="attendance-notes-list">{notes.map((note) => <div className="attendance-note-row" key={note.id}>
         <div><strong>{note.name}</strong><small>{note.department} · {note.date}</small></div>
-        <span className={`attendance-note-type attendance-note-type-${note.type === 'Nghỉ phép' ? 'leave' : note.type === 'Đi trễ' ? 'late' : 'early'}`}>{note.type}</span>
+        <span className={`attendance-note-type attendance-note-type-${getNoteTypeClass(note.type)}`}>{note.type}</span>
         <p>{note.reason}</p>
         <button type="button" className="attendance-note-delete" onClick={() => deleteNote(note.id)} aria-label={`Xóa ghi chú của ${note.name}`}>Xóa</button>
       </div>)}</div> : <p className="empty-state">Chưa có ghi chú trong khoảng thời gian đang chọn.</p>}
