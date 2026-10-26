@@ -1,11 +1,21 @@
-import Link from 'next/link';
-
-const reports = [
-  { href: '/daily-reports/fashion-q4', title: 'Báo cáo ngày thời trang Quận 4' },
-  { href: '/daily-reports/fabric-q4', title: 'Báo cáo ngày kho Quận 4' },
-  { href: '/daily-reports/fabric-ben-thanh', title: 'Báo cáo ngày kho Bến Thành' },
-];
+import ReportHub from '@/components/report-hub';
 
 export default function DailyReportsPage() {
-  return <main className="page-layout"><div className="page-header"><div><p className="eyebrow">DAILY REPORTS</p><h1>Bảng báo cáo ngày</h1></div><Link href="/" className="primary-btn">Về dashboard</Link></div><div className="stats-row">{reports.map((report) => <Link key={report.href} href={report.href} className="metric-card" style={{ textDecoration: 'none' }}><span>Bảng báo cáo</span><strong style={{ fontSize: '1.1rem' }}>{report.title}</strong></Link>)}</div></main>;
+  return (
+    <ReportHub
+      eyebrow="Vận hành"
+      title="Báo cáo ngày"
+      subtitle="Doanh thu Sale nhập theo từng ngày, chia theo kho."
+      sections={[
+        {
+          title: 'Chọn kho',
+          tiles: [
+            { href: '/daily-reports/fashion-q4', title: 'Thời trang Quận 4', description: 'Báo cáo bán hàng ngày của kho thời trang Quận 4.', icon: 'calendar', tone: 'violet' },
+            { href: '/daily-reports/fabric-q4', title: 'Kho vải Quận 4', description: 'Báo cáo bán hàng ngày của kho vải Quận 4.', icon: 'calendar', tone: 'cyan' },
+            { href: '/daily-reports/fabric-ben-thanh', title: 'Kho vải Bến Thành', description: 'Báo cáo bán hàng ngày của kho vải Bến Thành.', icon: 'calendar', tone: 'emerald' },
+          ],
+        },
+      ]}
+    />
+  );
 }

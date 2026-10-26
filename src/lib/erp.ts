@@ -268,7 +268,7 @@ async function fetchWithErpRetry(input: RequestInfo | URL, init: RequestInit = {
   return response;
 }
 
-export async function getErpCustomers() {
+async function getErpCustomersUncached() {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
   const fields = ['name', 'customer_name', 'customer_group', 'email_id', 'mobile_no', 'customer_type', 'creation'];
 
@@ -296,7 +296,7 @@ export async function getErpCustomers() {
   return customers;
 }
 
-export async function getErpSalesInvoices() {
+async function getErpSalesInvoicesUncached() {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
   const fields = ['name', 'customer', 'customer_name', 'grand_total', 'posting_date', 'status', 'docstatus'];
 
@@ -324,7 +324,7 @@ export async function getErpSalesInvoices() {
   return invoices;
 }
 
-export async function getErpSalesOrders() {
+async function getErpSalesOrdersUncached() {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
   const fields = ['name', 'customer', 'customer_name', 'grand_total', 'transaction_date', 'branch', 'status', 'docstatus'];
   const orders: Array<Record<string, unknown>> = [];
@@ -602,7 +602,7 @@ async function getMonthlyOrderComparison(baseUrl: string) {
   });
 }
 
-export async function getErpPipelineData(fromDate?: string, toDate?: string) {
+async function getErpPipelineDataUncached(fromDate?: string, toDate?: string) {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
   const counts = await Promise.all(
     ['Draft', 'To Deliver', 'To Bill', 'Completed', 'Cancelled'].map((status) =>
@@ -1176,7 +1176,7 @@ async function getSalesOrderItems(baseUrl: string, orderNames: string[]) {
   return items;
 }
 
-export async function getErpFashionPipelineData(fromDate?: string, toDate?: string) {
+async function getErpFashionPipelineDataUncached(fromDate?: string, toDate?: string) {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
   const fields = encodeURIComponent(JSON.stringify(['name', 'status', 'transaction_date']));
   const masterFields = encodeURIComponent(JSON.stringify(['item_code', 'item_name', 'item_group', 'stock_uom']));
@@ -1233,7 +1233,7 @@ export async function getErpFashionPipelineData(fromDate?: string, toDate?: stri
   }));
 }
 
-export async function getErpFashionMonthlyComparison(year: number) {
+async function getErpFashionMonthlyComparisonUncached(year: number) {
   const monthlySales = await Promise.all(Array.from({ length: 12 }, (_, index) => {
     const month = index + 1;
     const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -1261,7 +1261,7 @@ export async function getErpFashionMonthlyComparison(year: number) {
   });
 }
 
-export async function getErpFabricProgress(fromDate: string, toDate: string, warehouse = FABRIC_QUAN_4_WAREHOUSE) {
+async function getErpFabricProgressUncached(fromDate: string, toDate: string, warehouse = FABRIC_QUAN_4_WAREHOUSE) {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
   const fields = encodeURIComponent(JSON.stringify(['name', 'status', 'transaction_date']));
   const masterFields = encodeURIComponent(JSON.stringify(['item_code', 'item_name', 'item_group', 'stock_uom']));
@@ -1330,7 +1330,7 @@ export async function getErpFabricProgress(fromDate: string, toDate: string, war
   });
 }
 
-export async function getErpFabricMonthlyComparison(year: number, warehouse = FABRIC_QUAN_4_WAREHOUSE) {
+async function getErpFabricMonthlyComparisonUncached(year: number, warehouse = FABRIC_QUAN_4_WAREHOUSE) {
   const monthlySales = await Promise.all(Array.from({ length: 12 }, (_, index) => {
     const month = index + 1;
     const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -1376,7 +1376,7 @@ export type ErpProductAnalysisRow = {
   reorderPoint: number;
 };
 
-export async function getErpProductAnalysis(fromDate = '2020-01-01', toDate = new Date().toISOString().slice(0, 10)): Promise<ErpProductAnalysisRow[]> {
+async function getErpProductAnalysisUncached(fromDate = '2020-01-01', toDate = new Date().toISOString().slice(0, 10)): Promise<ErpProductAnalysisRow[]> {
   const baseUrl = (process.env.ERP_API_URL || 'https://gusaz.com').replace(/\/$/, '');
   const fields = (value: string[]) => encodeURIComponent(JSON.stringify(value));
   const company = await getErpCompanyName();
@@ -1675,7 +1675,7 @@ async function getFrappeResourceSummary(): Promise<ErpDashboardPayload | null> {
   };
 }
 
-export async function getErpDashboardData(): Promise<ErpDashboardPayload | null> {
+async function getErpDashboardDataUncached(): Promise<ErpDashboardPayload | null> {
   const { apiUrl, enabled } = getErpConfig();
 
   if (!enabled || !apiUrl) {
@@ -1716,4 +1716,86 @@ export async function getErpDashboardData(): Promise<ErpDashboardPayload | null>
     console.error('ERP API sync error:', error);
     return null;
   }
+}
+
+// Stale-while-revalidate cache for ERP reads: fresh results are served for ERP_CACHE_FRESH_MS,
+// older ones are served instantly while a background refresh runs, and identical in-flight
+// requests share one ERP call. Empty results (null/[]) and errors are never cached.
+const ERP_CACHE_FRESH_MS = 2 * 60 * 1000;
+const ERP_CACHE_STALE_MS = 30 * 60 * 1000;
+const erpReadCache = new Map<string, { value: unknown; fetchedAt: number }>();
+const erpInFlight = new Map<string, Promise<unknown>>();
+
+function isCacheable(value: unknown) {
+  return value !== null && value !== undefined && !(Array.isArray(value) && value.length === 0);
+}
+
+function refreshErpCache<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const pending = erpInFlight.get(key);
+  if (pending) return pending as Promise<T>;
+
+  const request = load()
+    .then((value) => {
+      if (isCacheable(value)) erpReadCache.set(key, { value, fetchedAt: Date.now() });
+      return value;
+    })
+    .finally(() => erpInFlight.delete(key));
+  erpInFlight.set(key, request);
+  return request;
+}
+
+function cachedErpRead<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const cached = erpReadCache.get(key);
+  const age = cached ? Date.now() - cached.fetchedAt : Infinity;
+
+  if (cached && age < ERP_CACHE_FRESH_MS) {
+    return Promise.resolve(cached.value as T);
+  }
+
+  if (cached && age < ERP_CACHE_STALE_MS) {
+    refreshErpCache(key, load).catch((error) => console.warn('ERP background refresh failed:', key, error));
+    return Promise.resolve(cached.value as T);
+  }
+
+  return refreshErpCache(key, load);
+}
+
+export function getErpCustomers(...args: Parameters<typeof getErpCustomersUncached>): ReturnType<typeof getErpCustomersUncached> {
+  return cachedErpRead(`getErpCustomers:${JSON.stringify(args)}`, () => getErpCustomersUncached(...args)) as ReturnType<typeof getErpCustomersUncached>;
+}
+
+export function getErpSalesInvoices(...args: Parameters<typeof getErpSalesInvoicesUncached>): ReturnType<typeof getErpSalesInvoicesUncached> {
+  return cachedErpRead(`getErpSalesInvoices:${JSON.stringify(args)}`, () => getErpSalesInvoicesUncached(...args)) as ReturnType<typeof getErpSalesInvoicesUncached>;
+}
+
+export function getErpSalesOrders(...args: Parameters<typeof getErpSalesOrdersUncached>): ReturnType<typeof getErpSalesOrdersUncached> {
+  return cachedErpRead(`getErpSalesOrders:${JSON.stringify(args)}`, () => getErpSalesOrdersUncached(...args)) as ReturnType<typeof getErpSalesOrdersUncached>;
+}
+
+export function getErpPipelineData(...args: Parameters<typeof getErpPipelineDataUncached>): ReturnType<typeof getErpPipelineDataUncached> {
+  return cachedErpRead(`getErpPipelineData:${JSON.stringify(args)}`, () => getErpPipelineDataUncached(...args)) as ReturnType<typeof getErpPipelineDataUncached>;
+}
+
+export function getErpFashionPipelineData(...args: Parameters<typeof getErpFashionPipelineDataUncached>): ReturnType<typeof getErpFashionPipelineDataUncached> {
+  return cachedErpRead(`getErpFashionPipelineData:${JSON.stringify(args)}`, () => getErpFashionPipelineDataUncached(...args)) as ReturnType<typeof getErpFashionPipelineDataUncached>;
+}
+
+export function getErpFashionMonthlyComparison(...args: Parameters<typeof getErpFashionMonthlyComparisonUncached>): ReturnType<typeof getErpFashionMonthlyComparisonUncached> {
+  return cachedErpRead(`getErpFashionMonthlyComparison:${JSON.stringify(args)}`, () => getErpFashionMonthlyComparisonUncached(...args)) as ReturnType<typeof getErpFashionMonthlyComparisonUncached>;
+}
+
+export function getErpFabricProgress(...args: Parameters<typeof getErpFabricProgressUncached>): ReturnType<typeof getErpFabricProgressUncached> {
+  return cachedErpRead(`getErpFabricProgress:${JSON.stringify(args)}`, () => getErpFabricProgressUncached(...args)) as ReturnType<typeof getErpFabricProgressUncached>;
+}
+
+export function getErpFabricMonthlyComparison(...args: Parameters<typeof getErpFabricMonthlyComparisonUncached>): ReturnType<typeof getErpFabricMonthlyComparisonUncached> {
+  return cachedErpRead(`getErpFabricMonthlyComparison:${JSON.stringify(args)}`, () => getErpFabricMonthlyComparisonUncached(...args)) as ReturnType<typeof getErpFabricMonthlyComparisonUncached>;
+}
+
+export function getErpProductAnalysis(...args: Parameters<typeof getErpProductAnalysisUncached>): ReturnType<typeof getErpProductAnalysisUncached> {
+  return cachedErpRead(`getErpProductAnalysis:${JSON.stringify(args)}`, () => getErpProductAnalysisUncached(...args)) as ReturnType<typeof getErpProductAnalysisUncached>;
+}
+
+export function getErpDashboardData(...args: Parameters<typeof getErpDashboardDataUncached>): ReturnType<typeof getErpDashboardDataUncached> {
+  return cachedErpRead(`getErpDashboardData:${JSON.stringify(args)}`, () => getErpDashboardDataUncached(...args)) as ReturnType<typeof getErpDashboardDataUncached>;
 }

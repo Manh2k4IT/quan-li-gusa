@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -7,6 +6,15 @@ import { canAccessModule, getRoleLabel, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import FormSubmitButton from '@/components/form-submit-button';
 import PasswordToggle from '@/components/password-toggle';
+import { Icon, type IconName } from '@/components/icons';
+
+const ROLE_OPTIONS = [
+  { value: 'CEO', label: 'CEO' },
+  { value: 'MANAGER', label: 'Quản lý' },
+  { value: 'SALE', label: 'Sale' },
+] as const;
+
+const CATEGORY_OPTIONS = ['Chưa phân loại', 'Thời trang Quận 4', 'Kho vải Quận 4', 'Kho vải Bến Thành', 'Tổng điều hành'];
 
 async function getUsers() {
   try {
@@ -179,147 +187,151 @@ export default async function AdminUsersPage() {
   }
 
   const users = await getUsers();
+  const roleCounts = {
+    CEO: users.filter((user) => user.role === 'CEO').length,
+    MANAGER: users.filter((user) => user.role === 'MANAGER').length,
+    SALE: users.filter((user) => user.role === 'SALE').length,
+  };
+  const stats: { label: string; value: number; icon: IconName; tone: string }[] = [
+    { label: 'Tổng người dùng', value: users.length, icon: 'users', tone: 'indigo' },
+    { label: 'CEO', value: roleCounts.CEO, icon: 'sparkles', tone: 'violet' },
+    { label: 'Quản lý', value: roleCounts.MANAGER, icon: 'userCheck', tone: 'cyan' },
+    { label: 'Sale', value: roleCounts.SALE, icon: 'target', tone: 'emerald' },
+  ];
 
   return (
-    <main className="page-layout">
-      <div className="page-header">
+    <main className="users-page">
+      <header className="users-header">
         <div>
-          <p className="eyebrow">Admin Console</p>
+          <p className="eyebrow">Quản trị hệ thống</p>
           <h1>Quản lý người dùng</h1>
+          <p className="users-subtitle">Tạo tài khoản, phân quyền và phân loại nhân sự theo kho. Bạn đang đăng nhập với quyền {getRoleLabel(session.role)}.</p>
         </div>
-        <Link href="/" className="primary-btn">Quay lại dashboard</Link>
-      </div>
+      </header>
 
-      <div className="stats-row">
-        <div className="metric-card">
-          <span>Người dùng</span>
-          <strong>{users.length}</strong>
-        </div>
-        <div className="metric-card">
-          <span>Quản trị viên</span>
-          <strong>{users.filter((user) => user.role === 'CEO').length}</strong>
-        </div>
-        <div className="metric-card">
-          <span>Quyền hiện tại</span>
-          <strong>{getRoleLabel(session.role)}</strong>
-        </div>
-      </div>
+      <section className="users-stats">
+        {stats.map((stat) => (
+          <div key={stat.label} className={`users-stat users-stat-${stat.tone}`}>
+            <span className="users-stat-icon"><Icon name={stat.icon} size={20} /></span>
+            <div>
+              <small>{stat.label}</small>
+              <strong>{stat.value}</strong>
+            </div>
+          </div>
+        ))}
+      </section>
 
-      <div className="panel add-customer-panel">
-        <div className="panel-header">
-          <h3>Thêm người dùng mới</h3>
-        </div>
+      <div className="users-layout">
+        <section className="users-card users-create">
+          <div className="users-card-header">
+            <h3>Thêm người dùng</h3>
+            <p>Email đã tồn tại sẽ được cập nhật thông tin.</p>
+          </div>
 
-        <form action={createUser} className="customer-form">
-          <div className="customer-form-grid">
+          <form action={createUser} className="users-form">
             <label>
               Họ tên
               <input name="name" type="text" placeholder="Nguyễn Văn B" required />
             </label>
-
             <label>
               Email
               <input name="email" type="email" placeholder="user@gusa.io" required />
             </label>
-
             <label>
               Mật khẩu
               <input name="password" type="password" placeholder="Nhập mật khẩu" required />
             </label>
+            <div className="users-form-row">
+              <label>
+                Vai trò
+                <select name="role" defaultValue="SALE">
+                  {ROLE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+              <label>
+                Phân loại
+                <select name="category" defaultValue="Chưa phân loại">
+                  {CATEGORY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>
+            </div>
+            <FormSubmitButton className="primary-btn users-submit" pendingLabel="Đang tạo tài khoản...">Tạo tài khoản</FormSubmitButton>
+          </form>
+        </section>
 
-            <label>
-              Vai trò
-              <select name="role" defaultValue="SALE">
-                <option value="CEO">CEO</option>
-                <option value="MANAGER">Quản lý</option>
-                <option value="SALE">Sale</option>
-              </select>
-            </label>
-
-            <label>
-              Phân loại
-              <select name="category" defaultValue="Chưa phân loại">
-                <option value="Chưa phân loại">Chưa phân loại</option>
-                <option value="Thời trang Quận 4">Thời trang Quận 4</option>
-                <option value="Kho vải Quận 4">Kho vải Quận 4</option>
-                <option value="Kho vải Bến Thành">Kho vải Bến Thành</option>
-                <option value="Tổng điều hành">Tổng điều hành</option>
-              </select>
-            </label>
+        <section className="users-card users-list">
+          <div className="users-card-header">
+            <h3>Danh sách người dùng</h3>
+            <span className="users-count">{users.length} tài khoản</span>
           </div>
 
-          <FormSubmitButton className="primary-btn" pendingLabel="Đang tạo tài khoản...">Tạo tài khoản</FormSubmitButton>
-        </form>
-      </div>
+          {users.length === 0 ? (
+            <div className="users-empty">Chưa có người dùng nào. Hãy tạo tài khoản mới ở form bên cạnh.</div>
+          ) : (
+            <div className="users-table-scroll">
+              <table className="users-table">
+                <thead>
+                  <tr>
+                    <th>Người dùng</th>
+                    <th>Vai trò &amp; phân loại</th>
+                    <th>Mật khẩu</th>
+                    <th>Ngày tạo</th>
+                    <th aria-label="Xóa" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => {
+                    const isSelf = user.email.toLowerCase() === session.email.toLowerCase();
 
-      <div className="panel">
-        <div className="panel-header">
-          <h3>Danh sách quyền người dùng</h3>
-        </div>
-
-        {users.length === 0 ? (
-          <div style={{ padding: '16px', color: '#b9d8f8', border: '1px dashed rgba(145, 175, 215, 0.35)', borderRadius: '12px' }}>
-            Chưa có người dùng nào. Hãy tạo tài khoản mới ở form phía trên.
-          </div>
-        ) : (
-          <div className="user-table-scroll">
-            <table className="data-table">
-            <thead>
-              <tr>
-                <th>Họ tên</th>
-                <th>Email</th>
-                <th>Vai trò</th>
-                <th>Phân loại</th>
-                <th>Mật khẩu</th>
-                <th>Org</th>
-                <th>Ngày tạo</th>
-                <th>Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td>{user.name}</td>
-                  <td>{user.email}</td>
-                  <td>
-                    <form action={updateUserRole}>
-                      <input type="hidden" name="userId" value={user.id} />
-                      <select name="role" defaultValue={user.role} aria-label={`Role for ${user.name}`}>
-                        <option value="CEO">CEO</option>
-                        <option value="MANAGER">Quản lý</option>
-                        <option value="SALE">Sale</option>
-                      </select>
-                      <FormSubmitButton className="ghost-btn" style={{ marginTop: '8px' }} pendingLabel="Đang lưu...">Lưu</FormSubmitButton>
-                    </form>
-                  </td>
-                  <td>
-                    <form action={updateUserRole}>
-                      <input type="hidden" name="userId" value={user.id} />
-                      <select name="category" defaultValue={user.category || 'Chưa phân loại'} aria-label={`Category for ${user.name}`}>
-                        <option value="Chưa phân loại">Chưa phân loại</option>
-                        <option value="Thời trang Quận 4">Thời trang Quận 4</option>
-                        <option value="Kho vải Quận 4">Kho vải Quận 4</option>
-                        <option value="Kho vải Bến Thành">Kho vải Bến Thành</option>
-                        <option value="Tổng điều hành">Tổng điều hành</option>
-                      </select>
-                      <FormSubmitButton className="ghost-btn" style={{ marginTop: '8px' }} pendingLabel="Đang lưu...">Lưu</FormSubmitButton>
-                    </form>
-                  </td>
-                  <td><PasswordToggle password={user.password} userName={user.name} /></td>
-                  <td>{user.org}</td>
-                  <td>{user.createdAt}</td>
-                  <td>
-                    <form action={deleteUser} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
-                      <input type="hidden" name="userId" value={user.id} />
-                      <FormSubmitButton className="ghost-btn danger-btn" pendingLabel="Đang xóa..." aria-label={`Xóa người dùng ${user.name}`}>Xóa</FormSubmitButton>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            </table>
-          </div>
-        )}
+                    return (
+                      <tr key={user.id}>
+                        <td>
+                          <div className="users-identity">
+                            <span className={`users-avatar users-avatar-${user.role.toLowerCase()}`}>{user.name.charAt(0).toUpperCase()}</span>
+                            <div>
+                              <strong>
+                                {user.name}
+                                {isSelf ? <span className="users-self">Bạn</span> : null}
+                              </strong>
+                              <small>{user.email}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <form action={updateUserRole} className="users-role-form">
+                            <input type="hidden" name="userId" value={user.id} />
+                            <select name="role" defaultValue={user.role} aria-label={`Vai trò của ${user.name}`} className={`users-role-select users-role-${user.role.toLowerCase()}`}>
+                              {ROLE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                            </select>
+                            <select name="category" defaultValue={user.category || 'Chưa phân loại'} aria-label={`Phân loại của ${user.name}`}>
+                              {CATEGORY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                            </select>
+                            <FormSubmitButton className="ghost-btn users-save" pendingLabel="Đang lưu...">Lưu</FormSubmitButton>
+                          </form>
+                        </td>
+                        <td><PasswordToggle password={user.password} userName={user.name} /></td>
+                        <td className="users-date">{user.createdAt}</td>
+                        <td>
+                          <form action={deleteUser}>
+                            <input type="hidden" name="userId" value={user.id} />
+                            <FormSubmitButton
+                              className="users-delete"
+                              pendingLabel="…"
+                              disabled={isSelf}
+                              aria-label={isSelf ? 'Không thể xóa tài khoản đang đăng nhập' : `Xóa người dùng ${user.name}`}
+                            >
+                              <Icon name="trash" size={16} />
+                            </FormSubmitButton>
+                          </form>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );

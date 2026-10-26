@@ -46,11 +46,11 @@ export default async function AIBrainPage() {
     <main className="page-layout">
       <div className="page-header">
         <div>
-          <p className="eyebrow">AI Brain</p>
+          <p className="eyebrow">Trí tuệ AI</p>
           <h1>Trợ lý vận hành thông minh</h1>
         </div>
         <div className="topbar-actions" style={{ gap: '8px' }}>
-          <Link href="/ai-chat" className="ghost-btn">Open AI Chat</Link>
+          <Link href="/ai-chat" className="ghost-btn">Mở trò chuyện AI</Link>
           <Link href="/" className="primary-btn">Quay lại dashboard</Link>
         </div>
       </div>
@@ -73,10 +73,10 @@ export default async function AIBrainPage() {
       <div className="panel ai-panel large-ai-panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Executive assistant</p>
+            <p className="eyebrow">Trợ lý điều hành</p>
             <h3>Phân tích hoạt động</h3>
           </div>
-          <span className="badge neutral">Live</span>
+          <span className="badge neutral">Trực tiếp</span>
         </div>
 
         <div className="ai-summary-box">

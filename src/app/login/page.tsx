@@ -52,7 +52,7 @@ export default function LoginPage() {
         <div className="brand-box auth-brand">
           <div className="brand-mark">G</div>
           <div>
-            <p className="eyebrow">Enterprise Suite</p>
+            <p className="eyebrow">Hệ thống quản trị</p>
             <h1>GUSA</h1>
           </div>
         </div>

@@ -296,7 +296,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     <main className="page-layout">
       <div className="page-header">
         <div>
-          <p className="eyebrow">ATTENDANCE REPORT</p>
+          <p className="eyebrow">Báo cáo chấm công</p>
           <h1>Báo cáo check in / check out</h1>
           <p className="page-subtitle">Dữ liệu lấy trực tiếp từ Google Sheets, cập nhật mỗi lần tải trang.</p>
         </div>
@@ -425,7 +425,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
 
           <section className="panel">
             <div className="panel-header">
-              <div><p className="eyebrow">LIVE DATA</p><h3>Đối chiếu check-in / check-out</h3></div>
+              <div><p className="eyebrow">Dữ liệu trực tiếp</p><h3>Đối chiếu check-in / check-out</h3></div>
               <span className="live-status">Nguồn: Google Sheets</span>
             </div>
             <div className="table-wrap attendance-pairs-table-wrap">

@@ -70,8 +70,8 @@ export default async function WarehouseReport({ warehouse, title, itemGroup, uni
   return (
     <main className="page-layout warehouse-report-page">
       <div className="page-header">
-        <div><p className="eyebrow">Warehouse strategy report</p><h1>{title}</h1><p className="page-subtitle">Báo cáo doanh thu và sản lượng từ ERP, phục vụ định hướng chiến lược.</p></div>
-        <div className="warehouse-report-actions"><span className={`status-badge ${!report ? 'status-disconnected' : report.dataStatus === 'stale' ? 'status-pending' : 'status-connected'}`}>{!report ? 'ERP Disconnected' : report.dataStatus === 'stale' ? 'ERP Stale Cache' : 'ERP Connected'}</span><Link href="/" className="ghost-btn">Quay lại dashboard</Link></div>
+        <div><p className="eyebrow">Báo cáo chiến lược kho</p><h1>{title}</h1><p className="page-subtitle">Báo cáo doanh thu và sản lượng từ ERP, phục vụ định hướng chiến lược.</p></div>
+        <div className="warehouse-report-actions"><span className={`status-badge ${!report ? 'status-disconnected' : report.dataStatus === 'stale' ? 'status-pending' : 'status-connected'}`}>{!report ? 'Mất kết nối ERP' : report.dataStatus === 'stale' ? 'ERP dữ liệu cũ' : 'Đã kết nối ERP'}</span><Link href="/" className="ghost-btn">Quay lại dashboard</Link></div>
       </div>
       {!report ? <div className="panel"><p className="comparison-loading comparison-error">{loadError}</p></div> : <>
         <form className="warehouse-time-toolbar" method="get">
@@ -82,7 +82,7 @@ export default async function WarehouseReport({ warehouse, title, itemGroup, uni
         </form>
         <div className="warehouse-overview-grid">
           <div className="panel warehouse-performance-panel">
-            <div className="panel-header"><div><p className="eyebrow">Overview</p><h3>Hiệu suất theo tháng</h3></div><span className="status-badge status-connected">ERP Connected</span></div>
+            <div className="panel-header"><div><p className="eyebrow">Tổng quan</p><h3>Hiệu suất theo tháng</h3></div><span className="status-badge status-connected">Đã kết nối ERP</span></div>
             <div className="warehouse-summary-row">
               <div><span>Doanh thu</span><strong>{formatFinancialValue(report.selectedPnlRevenue, report.financialDataAvailable)}</strong></div>
               <div><span>Lợi nhuận</span><strong className={report.selectedProfit >= 0 ? 'positive' : 'negative'}>{formatFinancialValue(report.selectedProfit, report.financialDataAvailable)}</strong></div>
@@ -98,11 +98,11 @@ export default async function WarehouseReport({ warehouse, title, itemGroup, uni
             <div className="warehouse-report-bars">{report.monthlySummary.map((item) => <div key={item.label} className="warehouse-report-bar-column"><div className="warehouse-report-bar-pair"><div className="warehouse-report-bar revenue" style={{ height: `${Math.max((item.revenue / maxRevenue) * 100, 3)}%` }} title={`${item.label}: ${formatVnd(item.revenue)}`} /><div className="warehouse-report-bar expenses" style={{ height: `${Math.max((item.expenses / maxExpenses) * 100, 3)}%` }} title={`${item.label}: ${formatVnd(item.expenses)}`} /><div className="warehouse-report-bar profit" style={{ height: `${Math.max((item.quantity / maxQuantity) * 100, 3)}%` }} title={`${item.label}: ${item.quantity} cái`} /></div><small>{item.label.replace('Tháng ', 'T')}</small></div>)}</div>
             <div className="warehouse-monthly-table">{report.monthlySummary.map((item, index) => <div key={item.label} className="warehouse-monthly-table-row"><strong>{item.label}</strong><span>{formatVnd(item.revenue)}</span><small className={item.revenue >= (report.monthlySummary[index - 1]?.revenue ?? 0) ? 'positive' : 'negative'}>{item.revenue >= (report.monthlySummary[index - 1]?.revenue ?? 0) ? '+' : '-'}{formatVnd(Math.abs(item.revenue - (report.monthlySummary[index - 1]?.revenue ?? 0)))}</small></div>)}</div>
           </div>
-          <div className="panel warehouse-ai-panel"><div className="panel-header"><div><p className="eyebrow">AI guidance</p><h3>Gợi ý từ AI</h3></div><span className="badge success">Live</span></div><div className="recommendation-list">{suggestions.map((suggestion) => <div key={suggestion} className="recommendation-card"><div className="chat-avatar">AI</div><div><p>{suggestion}</p></div></div>)}</div></div>
+          <div className="panel warehouse-ai-panel"><div className="panel-header"><div><p className="eyebrow">Gợi ý từ AI</p><h3>Gợi ý từ AI</h3></div><span className="badge success">Trực tiếp</span></div><div className="recommendation-list">{suggestions.map((suggestion) => <div key={suggestion} className="recommendation-card"><div className="chat-avatar">AI</div><div><p>{suggestion}</p></div></div>)}</div></div>
         </div>
         <div className="bottom-grid warehouse-bottom-grid">
-          <div className="panel"><div className="panel-header"><div><p className="eyebrow">Top products</p><h3>Sản phẩm tạo doanh thu</h3></div></div><div className="recommendation-list">{report.topProducts.map((item, index) => <div key={item.name} className="recommendation-card"><div className="chat-avatar">{index + 1}</div><div><h4>{item.name}</h4><p>{item.quantity.toLocaleString('vi-VN')} {unitType === 'meter' ? 'mét' : 'cái'} · {formatVnd(item.revenue)}</p></div></div>)}</div></div>
-          <div className="panel"><div className="panel-header"><div><p className="eyebrow">Product strategy</p><h3>Gợi ý AI cho sản phẩm</h3></div><span className="badge success">AI</span></div><div className="recommendation-list">{productSuggestions.map((suggestion) => <div key={suggestion} className="recommendation-card"><div className="chat-avatar">AI</div><div><p>{suggestion}</p></div></div>)}</div></div>
+          <div className="panel"><div className="panel-header"><div><p className="eyebrow">Sản phẩm bán chạy</p><h3>Sản phẩm tạo doanh thu</h3></div></div><div className="recommendation-list">{report.topProducts.map((item, index) => <div key={item.name} className="recommendation-card"><div className="chat-avatar">{index + 1}</div><div><h4>{item.name}</h4><p>{item.quantity.toLocaleString('vi-VN')} {unitType === 'meter' ? 'mét' : 'cái'} · {formatVnd(item.revenue)}</p></div></div>)}</div></div>
+          <div className="panel"><div className="panel-header"><div><p className="eyebrow">Chiến lược sản phẩm</p><h3>Gợi ý AI cho sản phẩm</h3></div><span className="badge success">AI</span></div><div className="recommendation-list">{productSuggestions.map((suggestion) => <div key={suggestion} className="recommendation-card"><div className="chat-avatar">AI</div><div><p>{suggestion}</p></div></div>)}</div></div>
         </div>
       </>}
     </main>

@@ -97,7 +97,7 @@ export default function DailySalesReportTable({ category }: { category: Category
     };
 
     queueMicrotask(sync);
-    const timer = window.setInterval(sync, 2000);
+    const timer = window.setInterval(() => { if (!document.hidden) sync(); }, 30_000);
     window.addEventListener('storage', sync);
     window.addEventListener('focus', sync);
     window.addEventListener('gusa-sales-report-sync', sync);
@@ -185,7 +185,7 @@ export default function DailySalesReportTable({ category }: { category: Category
   return (
     <main className="page-layout">
       <div className="page-header">
-        <div><p className="eyebrow">DAILY SALES REPORT</p><h1>{categoryLabels[category]}</h1></div>
+        <div><p className="eyebrow">Báo cáo bán hàng ngày</p><h1>{categoryLabels[category]}</h1></div>
         <Link href="/" className="primary-btn">Về dashboard</Link>
       </div>
 
@@ -205,11 +205,11 @@ export default function DailySalesReportTable({ category }: { category: Category
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(300px, 0.75fr)', gap: '18px', marginBottom: '18px' }}>
         <section className="panel" style={{ minHeight: '250px' }}>
-          <div className="panel-header"><div><p className="eyebrow">AI INSIGHT</p><h3>Phân tích báo cáo</h3></div><button type="button" onClick={analyzeVisibleReports} disabled={isAnalyzing || !visibleReports.length} className="primary-btn" style={{ padding: '9px 13px', fontSize: '0.78rem' }}>{isAnalyzing ? 'Đang phân tích...' : 'Phân tích AI'}</button></div>
+          <div className="panel-header"><div><p className="eyebrow">Phân tích AI</p><h3>Phân tích báo cáo</h3></div><button type="button" onClick={analyzeVisibleReports} disabled={isAnalyzing || !visibleReports.length} className="primary-btn" style={{ padding: '9px 13px', fontSize: '0.78rem' }}>{isAnalyzing ? 'Đang phân tích...' : 'Phân tích AI'}</button></div>
           <p style={{ color: '#b9d8f8', lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0 }}>{aiAnalysis || 'Chọn bộ lọc rồi bấm Phân tích AI để xem nhận xét về các báo cáo đang hiển thị.'}</p>
         </section>
         <section className="panel" style={{ minHeight: '250px' }}>
-          <div className="panel-header"><div><p className="eyebrow">SALES LEADERBOARD</p><h3>Doanh thu theo thành viên</h3></div><span className="badge success">{leaderboard.length} người</span></div>
+          <div className="panel-header"><div><p className="eyebrow">Bảng xếp hạng Sale</p><h3>Doanh thu theo thành viên</h3></div><span className="badge success">{leaderboard.length} người</span></div>
           {!leaderboard.length ? <p className="comparison-loading">Chưa có dữ liệu.</p> : <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{leaderboard.slice(0, 5).map((member, index) => { const maxRevenue = leaderboard[0]?.revenue || 1; return <div key={member.name} style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto', gap: '8px', alignItems: 'center' }}><strong style={{ color: '#f5d76e' }}>{index + 1}</strong><div><strong style={{ color: '#edf5ff', fontSize: '0.85rem' }}>{member.name}</strong><div style={{ height: '7px', marginTop: '5px', background: 'rgba(141,183,218,0.16)', borderRadius: '999px', overflow: 'hidden' }}><span style={{ display: 'block', width: `${Math.max(5, (member.revenue / maxRevenue) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #5fe5c4, #5d8bff)', borderRadius: '999px' }} /></div><small>{member.reports} báo cáo ngày</small></div><span style={{ color: '#9ad7ff', fontSize: '0.75rem', fontWeight: 700 }}>{formatVnd(member.revenue)}</span></div>; })}</div>}
         </section>
       </div>

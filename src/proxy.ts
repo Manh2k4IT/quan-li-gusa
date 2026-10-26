@@ -2,10 +2,18 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { SESSION_COOKIE, sessionCookieOptions } from '@/lib/session-cookie';
 
+function isValidSession(value: string) {
+  try {
+    return Boolean(JSON.parse(value)?.email);
+  } catch {
+    return false;
+  }
+}
+
 export function proxy(request: NextRequest) {
   const session = request.cookies.get(SESSION_COOKIE)?.value;
 
-  if (!session) {
+  if (!session || !isValidSession(session)) {
     return NextResponse.next();
   }
 

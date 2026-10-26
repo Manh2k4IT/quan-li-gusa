@@ -17,6 +17,26 @@ type AssignmentRecord = {
   assigneeId?: string;
 };
 
+const PLAN_STATUS_TABS: { label: string; value: PlanReport['status'] | ''; tone: string }[] = [
+  { label: 'Tất cả', value: '', tone: 'all' },
+  { label: 'Đang thực hiện', value: 'Đang thực hiện', tone: 'progress' },
+  { label: 'Chờ xác nhận', value: 'Chờ xác nhận', tone: 'pending' },
+  { label: 'Đã duyệt', value: 'Đã duyệt', tone: 'done' },
+  { label: 'Không duyệt', value: 'Không duyệt', tone: 'rejected' },
+];
+
+function statusTone(status: PlanReport['status']) {
+  if (status === 'Đã duyệt' || status === 'Đã hoàn thành') return 'done';
+  if (status === 'Không duyệt') return 'rejected';
+  if (status === 'Chờ xác nhận') return 'pending';
+  return 'progress';
+}
+
+function formatPlanDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : value;
+}
+
 type PlanReport = {
   id: string;
   assignedDate: string;
@@ -158,7 +178,7 @@ export default function SalesPlanPage() {
     const handleStorage = () => syncPlans();
     const handleLocalSync = () => syncPlans();
     const refreshAssignments = () => syncPlans();
-    const refreshTimer = window.setInterval(refreshAssignments, 3000);
+    const refreshTimer = window.setInterval(() => { if (!document.hidden) refreshAssignments(); }, 30_000);
 
     window.addEventListener('storage', handleStorage);
     window.addEventListener('gusa-plan-sync', handleLocalSync);
@@ -179,6 +199,8 @@ export default function SalesPlanPage() {
         return !assigneeId || assigneeId === sessionUser.id;
       });
 
+  const [statusFilter, setStatusFilter] = useState<PlanReport['status'] | ''>('');
+  const visiblePlans = statusFilter ? filteredPlans.filter((plan) => plan.status === statusFilter) : filteredPlans;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanReport | null>(null);
@@ -267,60 +289,90 @@ export default function SalesPlanPage() {
   };
 
   return (
-    <div style={{ flex: 1, maxWidth: '1360px', fontFamily: 'Inter, "Segoe UI", sans-serif' }}>
-      <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
+    <div className="plan-page">
+      <header className="page-header">
         <div>
-          <div style={{ fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8db7da', fontWeight: 700, marginBottom: '8px' }}>PLAN</div>
-          <h1 style={{ margin: 0, fontSize: '2.3rem', lineHeight: 1.08, letterSpacing: '-0.05em', color: '#edf5ff', fontWeight: 800 }}>Nhập báo cáo kế hoạch</h1>
+          <p className="eyebrow">Kế hoạch</p>
+          <h1>Báo cáo kế hoạch</h1>
+          <p className="users-subtitle">Các kế hoạch quản lý đã giao. Bấm “Nhập báo cáo” để cập nhật tiến độ, “Xem” để xem chi tiết.</p>
         </div>
-
-        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-          <button type="button" onClick={() => openModal()} style={{ background: 'linear-gradient(135deg, #5fe5c4, #4fd0c5)', border: 'none', color: '#061d2b', padding: '10px 18px', borderRadius: '12px', fontWeight: 800, cursor: 'pointer', minWidth: '118px', boxShadow: '0 8px 18px rgba(79, 208, 197, 0.25)', fontSize: '0.95rem' }}>Form nhập</button>
-          <button type="button" onClick={() => window.location.reload()} style={{ background: 'transparent', border: '1px solid rgba(158, 176, 211, 0.35)', color: '#edf5ff', padding: '10px 18px', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', minWidth: '104px', fontSize: '0.95rem' }}>Refresh</button>
+        <div className="topbar-actions">
+          <button type="button" className="ghost-btn" onClick={() => window.location.reload()}>Làm mới</button>
+          <button type="button" className="primary-btn" onClick={() => openModal()}>+ Nhập kế hoạch</button>
         </div>
       </header>
 
-      <section className="sales-plan-panel" style={{ width: '100%', maxWidth: '1100px', background: 'rgba(11, 26, 38, 0.88)', border: '1px solid rgba(115, 133, 163, 0.28)', borderRadius: '16px', padding: '20px 20px 18px', minHeight: '420px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <div>
-            <div style={{ fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8db7da', fontWeight: 700, marginBottom: '8px' }}>PLAN REPORT</div>
-            <h2 style={{ margin: 0, fontSize: '1.7rem', color: '#edf5ff', fontWeight: 800, letterSpacing: '-0.04em' }}>Nhập thông tin kế hoạch</h2>
+      <section className="plan-status-tabs">
+        {PLAN_STATUS_TABS.map((tab) => {
+          const count = tab.value ? filteredPlans.filter((plan) => plan.status === tab.value).length : filteredPlans.length;
+          return (
+            <button
+              key={tab.label}
+              type="button"
+              className={`plan-status-tab plan-tone-${tab.tone}${statusFilter === tab.value ? ' active' : ''}`}
+              onClick={() => setStatusFilter(tab.value)}
+            >
+              <small>{tab.label}</small>
+              <strong>{count}</strong>
+            </button>
+          );
+        })}
+      </section>
+
+      <section className="users-card">
+        <div className="users-card-header">
+          <h3>{statusFilter || 'Tất cả kế hoạch'}</h3>
+          <span className="users-count">{visiblePlans.length} kế hoạch</span>
+        </div>
+
+        {visiblePlans.length === 0 ? (
+          <div className="users-empty">Không có kế hoạch nào{statusFilter ? ` ở trạng thái "${statusFilter}"` : ''}.</div>
+        ) : (
+          <div className="users-table-scroll">
+            <table className="users-table plan-table">
+              <thead>
+                <tr>
+                  <th>Ngày giao</th>
+                  <th>Kế hoạch</th>
+                  <th>Sale</th>
+                  <th>Phân loại</th>
+                  <th>Trạng thái</th>
+                  <th aria-label="Thao tác" />
+                </tr>
+              </thead>
+              <tbody>
+                {visiblePlans.map((plan) => {
+                  const isClosed = plan.status === 'Đã duyệt' || plan.status === 'Không duyệt';
+                  return (
+                    <tr key={plan.id}>
+                      <td className="users-date">{formatPlanDate(plan.assignedDate)}<small className="cx-sub">bởi {plan.manager}</small></td>
+                      <td className="plan-title-cell">
+                        <strong>{plan.title || 'Kế hoạch được giao'}</strong>
+                        {plan.note ? <small>{plan.note}</small> : null}
+                      </td>
+                      <td>
+                        <div className="users-identity">
+                          <span className="users-avatar">{plan.salesperson.charAt(0).toUpperCase()}</span>
+                          <strong>{plan.salesperson}</strong>
+                        </div>
+                      </td>
+                      <td><span className="cx-group">{plan.category}</span></td>
+                      <td><span className={`plan-status plan-tone-${statusTone(plan.status)}`}>{plan.status}</span></td>
+                      <td>
+                        <div className="cx-row-actions">
+                          <button type="button" className="ghost-btn users-save" onClick={() => openDetails(plan)}>Xem</button>
+                          {isClosed ? null : (
+                            <button type="button" className="primary-btn users-save" onClick={() => openModal(plan)}>Nhập báo cáo</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <button type="button" onClick={() => openModal()} style={{ background: 'rgba(234, 179, 8, 0.12)', border: '1px solid rgba(234, 179, 8, 0.25)', color: '#f5d76e', borderRadius: '14px', padding: '8px 16px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>Mới</button>
-        </div>
-
-        <div className="sales-plan-table-header" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.4fr 0.9fr 1.2fr', gap: '12px', padding: '0 4px 10px', color: '#edf5ff', fontWeight: 700, fontSize: '0.78rem', alignItems: 'end', letterSpacing: '0.02em' }}>
-          <div>Ngày</div>
-          <div>Quản lý</div>
-          <div>Sale</div>
-          <div>Phân loại</div>
-          <div>Trạng thái</div>
-          <div style={{ textAlign: 'right' }}></div>
-        </div>
-
-        <div className="sales-plan-table-list" style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '0 4px 4px' }}>
-          {filteredPlans.map((plan) => (
-            <div className="sales-plan-table-row" key={plan.id} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.4fr 0.9fr 1.2fr', gap: '12px', alignItems: 'center', background: 'rgba(26, 45, 58, 0.7)', border: '1px solid rgba(158, 176, 211, 0.2)', borderRadius: '14px', padding: '16px 14px', minHeight: '70px', boxShadow: '0 6px 16px rgba(2, 8, 23, 0.12)' }}>
-              <div style={{ color: '#edf5ff', fontWeight: 700, fontSize: '1.1rem', whiteSpace: 'pre-line', lineHeight: '1.25' }}>{plan.assignedDate.replace(/-/g, '\n').replace(/^(\d{4})\n(\d{2})\n(\d{2})$/, '$1-\n$2-$3')}</div>
-              <div style={{ color: '#edf5ff', fontWeight: 700, fontSize: '1rem', whiteSpace: 'pre-line', lineHeight: '1.35' }}>{plan.manager}</div>
-              <div style={{ color: '#edf5ff', fontWeight: 700, fontSize: '1rem', whiteSpace: 'pre-line', lineHeight: '1.35' }}>{plan.salesperson}</div>
-              <div style={{ color: '#edf5ff', fontWeight: 700, fontSize: '1rem', whiteSpace: 'pre-line', lineHeight: '1.35' }}>{plan.category}</div>
-              <div>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '86px', padding: '7px 10px', borderRadius: '999px', background: plan.status === 'Đã duyệt' || plan.status === 'Đã hoàn thành' ? 'rgba(52,211,153,0.12)' : plan.status === 'Không duyệt' ? 'rgba(255,100,100,0.12)' : plan.status === 'Chờ xác nhận' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.12)', color: plan.status === 'Đã duyệt' || plan.status === 'Đã hoàn thành' ? '#59e1a4' : plan.status === 'Không duyệt' ? '#ffabab' : plan.status === 'Chờ xác nhận' ? '#ffcb6b' : '#67b8ff', fontWeight: 700, fontSize: '11px' }}>{plan.status}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button type="button" onClick={() => openDetails(plan)} style={{ background: 'rgba(141, 183, 218, 0.12)', border: '1px solid rgba(141, 183, 218, 0.35)', color: '#b9d8f8', padding: '10px 14px', borderRadius: '10px', fontWeight: 800, cursor: 'pointer', fontSize: '0.92rem' }}>Xem</button>
-                  {plan.status === 'Đã duyệt' || plan.status === 'Không duyệt' ? (
-                    <button type="button" disabled style={{ background: 'rgba(125, 145, 165, 0.35)', border: 'none', color: plan.status === 'Đã duyệt' ? '#8ff0c9' : '#ffabab', padding: '10px 16px', borderRadius: '10px', fontWeight: 800, cursor: 'default', minWidth: '128px', fontSize: '0.92rem' }}>{plan.status}</button>
-                  ) : (
-                    <button type="button" onClick={() => openModal(plan)} style={{ background: 'linear-gradient(135deg, #5fe5c4, #46d0c9)', border: 'none', color: '#061d2b', padding: '10px 16px', borderRadius: '10px', fontWeight: 800, cursor: 'pointer', minWidth: '128px', boxShadow: '0 8px 20px rgba(92, 229, 196, 0.2)', fontSize: '0.92rem' }}>Nhập báo cáo</button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        )}
       </section>
 
       {isDetailOpen && selectedPlan && (

@@ -53,7 +53,7 @@ export default function PlanAssignmentSection() {
     <section id="plan-assignment" style={{ marginTop: '20px', width: '100%', background: 'rgba(11, 26, 38, 0.88)', border: '1px solid rgba(115, 133, 163, 0.28)', borderRadius: '18px', padding: '18px 20px', boxShadow: '0 16px 30px rgba(0,0,0,0.08)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
         <div>
-          <div style={{ fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8db7da', fontWeight: 700, marginBottom: '8px' }}>PLAN ASSIGNMENT</div>
+          <div style={{ fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8db7da', fontWeight: 700, marginBottom: '8px' }}>Giao kế hoạch</div>
           <h3 style={{ margin: 0, color: '#edf5ff', fontSize: '1.8rem', letterSpacing: '-0.04em' }}>Bảng giao kế hoạch</h3>
         </div>
       </div>
@@ -91,7 +91,7 @@ export default function PlanAssignmentSection() {
               <div>Ngày</div>
               <div>Trạng thái</div>
               <div>Ghi chú</div>
-              <div>File</div>
+              <div>Tệp</div>
             </div>
 
             {activeRows.map((row) => (

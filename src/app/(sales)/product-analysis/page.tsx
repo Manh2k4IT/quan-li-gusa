@@ -130,7 +130,7 @@ export default function ProductAnalysisPage() {
     <main className="sales-analysis-page product-analysis-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">ERP PRODUCT INTELLIGENCE</p>
+          <p className="eyebrow">Phân tích sản phẩm ERP</p>
           <h2>Phân tích sản phẩm {selectedGroup.label}</h2>
           <p className="page-subtitle">Theo dõi doanh thu, lượng bán và tồn kho {selectedGroup.label} trực tiếp từ ERP.</p>
         </div>
@@ -153,7 +153,7 @@ export default function ProductAnalysisPage() {
 
       <section className="panel product-analysis-panel">
         <div className="panel-header">
-          <div><p className="eyebrow">ERP PRODUCT DATA</p><h3>Hiệu quả theo sản phẩm</h3></div>
+          <div><p className="eyebrow">Dữ liệu sản phẩm ERP</p><h3>Hiệu quả theo sản phẩm</h3></div>
           <span className="live-status">{visibleProducts.length} sản phẩm</span>
         </div>
         <div className="product-analysis-filters">
@@ -195,7 +195,7 @@ export default function ProductAnalysisPage() {
 
       <section className="panel customer-ai-panel product-ai-panel">
         <div className="panel-header">
-          <div><p className="eyebrow">AI PRODUCT ADVISOR</p><h3>Phân tích AI cho sản phẩm</h3></div>
+          <div><p className="eyebrow">Trợ lý AI sản phẩm</p><h3>Phân tích AI cho sản phẩm</h3></div>
           <span className="live-status">Đang dùng {selectedGroup.label}</span>
         </div>
         <div className="customer-ai-workspace">

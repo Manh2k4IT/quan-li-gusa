@@ -39,7 +39,7 @@ export default function SalesReportInbox() {
     };
 
     void loadReports();
-    const timer = window.setInterval(loadReports, 5000);
+    const timer = window.setInterval(() => { if (!document.hidden) loadReports(); }, 30_000);
     return () => {
       ignore = true;
       window.clearInterval(timer);
@@ -50,7 +50,7 @@ export default function SalesReportInbox() {
     <section className="panel" style={{ marginTop: '20px' }}>
       <div className="panel-header">
         <div>
-          <p className="eyebrow">SALES REPORT INBOX</p>
+          <p className="eyebrow">Hộp báo cáo Sale</p>
           <h3>Báo cáo Sale mới nhất</h3>
         </div>
         <Link href="/daily-reports" className="ghost-btn">Xem tất cả</Link>

@@ -113,7 +113,7 @@ export default function SalesReportsPage() {
       })
       .catch(() => setManagerTarget(0));
     loadTarget();
-    const timer = window.setInterval(loadTarget, 3000);
+    const timer = window.setInterval(() => { if (!document.hidden) loadTarget(); }, 30_000);
     return () => window.clearInterval(timer);
   }, [form.category]);
 
@@ -227,13 +227,13 @@ export default function SalesReportsPage() {
     <section className="content">
       <header className="topbar">
         <div>
-          <p className="eyebrow">Sales performance</p>
+          <p className="eyebrow">Hiệu suất bán hàng</p>
           <h2>Báo cáo Sale nhập</h2>
         </div>
 
         <div className="topbar-actions">
           <span className="status-badge status-connected">Sale nhập thủ công</span>
-          <Link href="/sales-reports" className="ghost-btn">Refresh</Link>
+          <Link href="/sales-reports" className="ghost-btn">Làm mới</Link>
         </div>
       </header>
 
@@ -252,7 +252,7 @@ export default function SalesReportsPage() {
 
           <div className="sales-entry-layout" id="report-form">
             <section className="panel">
-              <div className="panel-header"><div><p className="eyebrow">Input</p><h3>Nhập báo cáo Sale</h3></div></div>
+              <div className="panel-header"><div><p className="eyebrow">Nhập liệu</p><h3>Nhập báo cáo Sale</h3></div></div>
               <form className="sales-report-form" onSubmit={saveReport}>
                 <label>Ngày báo cáo<input type="date" value={form.date} onChange={(event) => updateForm('date', event.target.value)} required /></label>
                 <label>Phân loại<select value={form.category} disabled={sessionUser?.role === 'SALE'} onChange={(event) => updateForm('category', event.target.value)}><option>Vải Bến Thành</option><option>Vải Quận 4</option><option>Thời trang Quận 4</option></select></label>
@@ -268,7 +268,7 @@ export default function SalesReportsPage() {
 
           <div className="bottom-grid sales-report-layout" id="report-list">
             <section className="panel sales-report-list-panel">
-              <div className="panel-header"><div><p className="eyebrow">Actual vs target</p><h3>Danh sách báo cáo</h3></div><span className={`badge ${completion >= 100 ? 'success' : 'neutral'}`}>{completion}%</span></div>
+              <div className="panel-header"><div><p className="eyebrow">Thực tế so với mục tiêu</p><h3>Danh sách báo cáo</h3></div><span className={`badge ${completion >= 100 ? 'success' : 'neutral'}`}>{completion}%</span></div>
               <div className="recommendation-list">
                 {!visibleReports.length && <p className="comparison-loading">Chưa có báo cáo trong khoảng thời gian này.</p>}
                 {visibleReports.map((report) => (
@@ -290,7 +290,7 @@ export default function SalesReportsPage() {
 
         <aside className="sales-insight-sidebar">
           <section className="panel sales-member-chart">
-            <div className="panel-header"><div><p className="eyebrow">Sales leaderboard</p><h3>Doanh thu theo thành viên</h3></div><span className="badge success">{memberPerformance.length} người</span></div>
+            <div className="panel-header"><div><p className="eyebrow">Bảng xếp hạng Sale</p><h3>Doanh thu theo thành viên</h3></div><span className="badge success">{memberPerformance.length} người</span></div>
             {!memberPerformance.length ? <p className="comparison-loading">Chưa có dữ liệu thành viên trong khoảng thời gian này.</p> : <div className="member-chart-list">
               {memberPerformance.map((member, index) => <div className="member-chart-row" key={member.name}>
                 <div className="member-chart-value">{formatVnd(member.revenue)}</div>
@@ -302,7 +302,7 @@ export default function SalesReportsPage() {
           </section>
 
           <section className="panel sales-target-card">
-            <div className="panel-header"><div><p className="eyebrow">Target</p><h3>Mục tiêu doanh thu</h3></div><span className="badge neutral">{completion}%</span></div>
+            <div className="panel-header"><div><p className="eyebrow">Mục tiêu</p><h3>Mục tiêu doanh thu</h3></div><span className="badge neutral">{completion}%</span></div>
             <div className="sales-target-numbers"><strong>{formatVnd(totals.revenue)}</strong><span>/ {formatVnd(totals.target)}</span></div>
             <div className="sales-target-track"><span style={{ width: `${Math.min(completion, 100)}%` }} /></div>
             <p>{completion >= 100 ? 'Đã đạt hoặc vượt mục tiêu.' : `Còn ${formatVnd(Math.max(totals.target - totals.revenue, 0))} để đạt mục tiêu.`}</p>

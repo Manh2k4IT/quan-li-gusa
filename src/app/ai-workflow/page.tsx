@@ -78,8 +78,8 @@ export default function AIWorkflowPage() {
     <main className="page-layout">
       <div className="page-header">
         <div>
-          <p className="eyebrow">AI Workflow</p>
-          <h1>Automation & orchestration</h1>
+          <p className="eyebrow">Luồng tự động AI</p>
+          <h1>Tự động hóa & điều phối</h1>
         </div>
         <Link href="/" className="primary-btn">Quay lại dashboard</Link>
       </div>
@@ -96,10 +96,10 @@ export default function AIWorkflowPage() {
       <div className="panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Automation map</p>
+            <p className="eyebrow">Sơ đồ tự động hóa</p>
             <h3>Workflow đang chạy</h3>
           </div>
-          <span className="badge neutral">Live</span>
+          <span className="badge neutral">Trực tiếp</span>
         </div>
 
         {loading ? (
@@ -125,9 +125,9 @@ export default function AIWorkflowPage() {
                 <div className="strategy-footer">
                   <span>Coverage {workflow.coverage}%</span>
                   <div className="topbar-actions" style={{ gap: '8px', marginTop: '12px' }}>
-                    <button className="ghost-btn" onClick={() => updateWorkflow(workflow.id, 'Running')}>Run</button>
-                    <button className="ghost-btn" onClick={() => updateWorkflow(workflow.id, 'Review')}>Review</button>
-                    <button className="ghost-btn" onClick={() => updateWorkflow(workflow.id, 'Paused')}>Pause</button>
+                    <button className="ghost-btn" onClick={() => updateWorkflow(workflow.id, 'Running')}>Chạy</button>
+                    <button className="ghost-btn" onClick={() => updateWorkflow(workflow.id, 'Review')}>Xem lại</button>
+                    <button className="ghost-btn" onClick={() => updateWorkflow(workflow.id, 'Paused')}>Tạm dừng</button>
                   </div>
                 </div>
               </article>
@@ -140,7 +140,7 @@ export default function AIWorkflowPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">AI suggestions</p>
+              <p className="eyebrow">Gợi ý từ AI</p>
               <h3>Đề xuất tự động</h3>
             </div>
           </div>
@@ -166,7 +166,7 @@ export default function AIWorkflowPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Recent events</p>
+              <p className="eyebrow">Sự kiện gần đây</p>
               <h3>Sự kiện vừa qua</h3>
             </div>
           </div>

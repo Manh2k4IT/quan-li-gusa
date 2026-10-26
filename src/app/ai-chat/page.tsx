@@ -102,7 +102,7 @@ export default function AIChatPage() {
     <main className="page-layout">
       <div className="page-header">
         <div>
-          <p className="eyebrow">AI Chat</p>
+          <p className="eyebrow">Trò chuyện AI</p>
           <h1>Trợ lý doanh nghiệp</h1>
         </div>
         <Link href="/" className="primary-btn">Quay lại dashboard</Link>
@@ -111,7 +111,7 @@ export default function AIChatPage() {
       <div className="panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Conversations</p>
+            <p className="eyebrow">Cuộc trò chuyện</p>
             <h3>Cuộc trò chuyện gần đây</h3>
           </div>
         </div>
@@ -132,10 +132,10 @@ export default function AIChatPage() {
       <div className="panel ai-panel large-ai-panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Live chat</p>
+            <p className="eyebrow">Trò chuyện trực tiếp</p>
             <h3>Trợ lý AI</h3>
           </div>
-          <span className="badge success">Online</span>
+          <span className="badge success">Trực tuyến</span>
         </div>
 
         <div className="chat-session">

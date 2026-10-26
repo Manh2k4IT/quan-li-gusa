@@ -51,7 +51,7 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
   const [liveErpData, setLiveErpData] = useState<ErpDashboardPayload | null>(erpData);
   const resolvedErpData = liveErpData ?? erpData;
   const erpConnected = Boolean(resolvedErpData);
-  const erpConnectionLabel = erpConnected ? 'ERP Connected' : 'Chưa kết nối ERP';
+  const erpConnectionLabel = erpConnected ? 'Đã kết nối ERP' : 'Chưa kết nối ERP';
 
   useEffect(() => {
     let ignore = false;
@@ -137,8 +137,8 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
             metrics: [
               { label: 'Doanh thu lũy kế 2026', value: formatVnd(revenue), change: '+0.0%', tone: 'up' },
               { label: 'Lợi nhuận lũy kế 2026', value: formatVnd(profit), change: '+0.0%', tone: 'up' },
-              { label: 'Khách hàng', value: 'Đang đồng bộ', change: 'Live', tone: 'up' },
-              { label: 'Mặt hàng', value: 'Đang đồng bộ', change: 'Live', tone: 'up' },
+              { label: 'Khách hàng', value: 'Đang đồng bộ', change: 'Trực tiếp', tone: 'up' },
+              { label: 'Mặt hàng', value: 'Đang đồng bộ', change: 'Trực tiếp', tone: 'up' },
             ],
             monthlyPerformance,
             pipeline: [],
@@ -358,9 +358,9 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
     <>
       <div className="stats-row" style={{ marginBottom: '20px', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
         {topMetrics.map((metric) => (
-          <div key={metric.label} className="metric-card" style={{ minHeight: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div key={metric.label} className="metric-card" style={{ minHeight: '150px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '1.05rem', color: '#dfe9f8' }}>{metric.label}</span>
-            <strong style={{ marginTop: '10px', fontSize: 'clamp(1.6rem, 2vw, 2.8rem)', lineHeight: 1.08, letterSpacing: '-0.03em', maxWidth: '100%', overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'normal' }}>{metric.value}</strong>
+            <strong style={{ marginTop: '10px', fontSize: 'clamp(1.25rem, 1.6vw, 1.9rem)', lineHeight: 1.08, letterSpacing: '-0.03em', maxWidth: '100%', overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'normal' }}>{metric.value}</strong>
             <small className={(metric.change ?? '').startsWith('-') ? 'text-down' : 'text-up'} style={{ fontSize: '1rem', display: 'inline-block', marginTop: '8px' }}>{metric.change ?? '0%'}</small>
           </div>
         ))}
@@ -370,7 +370,7 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
         <div className="panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Overview</p>
+              <p className="eyebrow">Tổng quan</p>
               <h3>Hiệu suất theo tháng</h3>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -473,10 +473,10 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
         <div className="panel ai-panel" style={{ padding: '18px 18px 16px', minHeight: '420px', display: 'flex', flexDirection: 'column' }}>
           <div className="panel-header" style={{ marginBottom: '12px' }}>
             <div>
-              <p className="eyebrow" style={{ letterSpacing: '0.12em', fontSize: '0.68rem' }}>AI guidance</p>
+              <p className="eyebrow" style={{ letterSpacing: '0.12em', fontSize: '0.68rem' }}>Gợi ý từ AI</p>
               <h3 style={{ marginTop: '4px', fontSize: '1.05rem', fontWeight: 700 }}>Gợi ý từ AI</h3>
             </div>
-            <span className="badge success" style={{ fontSize: '0.68rem', padding: '5px 10px' }}>{aiInsightsLoading ? 'Đang tải' : 'Live'}</span>
+            <span className="badge success" style={{ fontSize: '0.68rem', padding: '5px 10px' }}>{aiInsightsLoading ? 'Đang tải' : 'Trực tiếp'}</span>
           </div>
 
           <div className="ai-shell" style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
@@ -521,13 +521,13 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
         <div className="panel operations-panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Operations</p>
+              <p className="eyebrow">Vận hành</p>
               <h3>Kho thời trang Quận 4</h3>
               <small className="panel-note">Thời trang · {fashionQuantity.toLocaleString('vi-VN')} cái trong tháng</small>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className={`status-badge ${erpConnected ? 'status-connected' : 'status-disconnected'}`}>{erpConnectionLabel}</span>
-              <span className="badge success">Live</span>
+              <span className="badge success">Trực tiếp</span>
             </div>
           </div>
 
@@ -565,7 +565,7 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
         <div className="panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Comparison</p>
+              <p className="eyebrow">So sánh</p>
               <h3>So sánh thời trang bán thành công</h3>
             </div>
           </div>
@@ -595,12 +595,12 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
         <div className="panel operations-panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Fabric operations</p>
+              <p className="eyebrow">Vận hành kho vải</p>
               <h3>Kho vải Quận 4</h3>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className={`status-badge ${erpConnected ? 'status-connected' : 'status-disconnected'}`}>{erpConnectionLabel}</span>
-              <span className="badge success">Live</span>
+              <span className="badge success">Trực tiếp</span>
             </div>
           </div>
 
@@ -622,7 +622,7 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
         <div className="panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Fabric comparison</p>
+              <p className="eyebrow">So sánh kho vải</p>
               <h3>So sánh vải bán thành công</h3>
             </div>
           </div>
@@ -650,12 +650,12 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
         <div className="panel operations-panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Fabric operations</p>
+              <p className="eyebrow">Vận hành kho vải</p>
               <h3>Kho vải Bến Thành</h3>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className={`status-badge ${erpConnected ? 'status-connected' : 'status-disconnected'}`}>{erpConnectionLabel}</span>
-              <span className="badge success">Live</span>
+              <span className="badge success">Trực tiếp</span>
             </div>
           </div>
 
@@ -677,7 +677,7 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
         <div className="panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Fabric comparison</p>
+              <p className="eyebrow">So sánh kho vải</p>
               <h3>So sánh vải Bến Thành bán thành công</h3>
             </div>
           </div>

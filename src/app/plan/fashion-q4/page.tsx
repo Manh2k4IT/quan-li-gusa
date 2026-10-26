@@ -168,47 +168,6 @@ export default function FashionPlanPage() {
 
   return (
     <main className="page-shell">
-      <aside className="sidebar">
-        <div className="brand-box">
-          <div className="brand-mark">G</div>
-          <div>
-            <p className="eyebrow">Enterprise Suite</p>
-            <h1>GUSA</h1>
-          </div>
-        </div>
-
-        <nav className="nav">
-          <span className="nav-title">Overview</span>
-          <Link href="/" className="nav-item active">
-            <span>◈</span>
-            Dashboard quản lý
-          </Link>
-
-          <span className="nav-title">Dashboard</span>
-          <Link href="/plan/fashion-q4" className="nav-item">
-            <span>▦</span>
-            Bảng giao kế hoạch
-          </Link>
-
-          <div style={{ margin: '8px 0 0', paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <Link href="/plan/fashion-q4" className="nav-item" style={{ padding: '8px 10px', borderRadius: '10px', background: 'rgba(92, 132, 180, 0.08)', border: '1px solid rgba(145, 175, 215, 0.15)' }}>
-              <span>▣</span>
-              Báo cáo kế hoạch Sale thời trang-kho vải Quận 4-Bến Thành
-            </Link>
-          </div>
-
-          <span className="nav-title">Sale</span>
-          <Link href="/sales-reports" className="nav-item">
-            <span>▣</span>
-            Báo cáo Sale nhập
-          </Link>
-          <Link href="/sales-plan" className="nav-item">
-            <span>📋</span>
-            Báo cáo kế hoạch
-          </Link>
-        </nav>
-      </aside>
-
       <section className="content">
         <header className="topbar">
           <div>
@@ -270,8 +229,8 @@ export default function FashionPlanPage() {
             <div>Phân loại</div>
             <div>Trạng thái</div>
             <div>Ghi chú</div>
-            <div>File</div>
-            <div style={{ textAlign: 'right' }}>Action</div>
+            <div>Tệp</div>
+            <div style={{ textAlign: 'right' }}>Thao tác</div>
           </div>
 
           {filteredRows.map((row) => (
@@ -307,14 +266,14 @@ export default function FashionPlanPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(2, 8, 16, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }} onClick={() => setSelectedReport(null)}>
           <div onClick={(event) => event.stopPropagation()} style={{ width: 'min(760px, calc(100vw - 32px))', maxHeight: '88vh', overflowY: 'auto', overflowX: 'hidden', boxSizing: 'border-box', background: 'rgba(15, 27, 38, 0.98)', border: '1px solid rgba(140, 160, 190, 0.25)', borderRadius: '18px', padding: '22px 20px', boxShadow: '0 24px 45px rgba(0,0,0,0.28)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <div><p className="eyebrow" style={{ marginBottom: '6px' }}>SALE REPORT</p><h3 style={{ margin: 0, color: '#edf5ff', fontSize: '1.7rem' }}>Báo cáo của {selectedReport.sale}</h3></div>
+              <div><p className="eyebrow" style={{ marginBottom: '6px' }}>Báo cáo Sale</p><h3 style={{ margin: 0, color: '#edf5ff', fontSize: '1.7rem' }}>Báo cáo của {selectedReport.sale}</h3></div>
               <button type="button" onClick={() => setSelectedReport(null)} style={{ background: 'transparent', border: '1px solid rgba(158, 176, 211, 0.25)', color: '#edf5ff', width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer' }}>×</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <div><small style={{ color: '#8db7da' }}>Sale</small><p style={{ margin: '6px 0 0', color: '#edf5ff', fontWeight: 700 }}>{selectedReport.sale}</p></div>
               <div><small style={{ color: '#8db7da' }}>Ngày báo cáo</small><p style={{ margin: '6px 0 0', color: '#edf5ff', fontWeight: 700 }}>{selectedReport.date}</p></div>
               <div><small style={{ color: '#8db7da' }}>Trạng thái</small><p style={{ margin: '6px 0 0', color: '#ffcb6b', fontWeight: 700 }}>{selectedReport.status}</p></div>
-              <div><small style={{ color: '#8db7da' }}>File</small><p style={{ margin: '6px 0 0', color: '#9ad7ff', fontWeight: 700 }}>{selectedReport.attachment || 'Không có file'}</p></div>
+              <div><small style={{ color: '#8db7da' }}>Tệp</small><p style={{ margin: '6px 0 0', color: '#9ad7ff', fontWeight: 700 }}>{selectedReport.attachment || 'Không có file'}</p></div>
             </div>
             <div style={{ marginTop: '18px', minWidth: 0 }}><small style={{ color: '#8db7da' }}>Nội dung báo cáo</small><p style={{ margin: '8px 0 0', padding: '12px 14px', minHeight: '100px', maxHeight: '240px', overflowY: 'auto', overflowWrap: 'anywhere', color: '#dfeaf7', background: 'rgba(15, 26, 38, 0.8)', border: '1px solid rgba(158, 176, 211, 0.25)', borderRadius: '10px', whiteSpace: 'pre-wrap' }}>{selectedReport.note || 'Sale chưa nhập nội dung báo cáo.'}</p></div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '18px' }}><button type="button" onClick={analyzeReport} disabled={isAnalyzing} style={{ border: 'none', background: isAnalyzing ? 'rgba(125,145,165,0.35)' : 'linear-gradient(135deg, #8b9cff, #6f7cf0)', color: '#fff', borderRadius: '9px', padding: '9px 14px', fontWeight: 800, cursor: isAnalyzing ? 'default' : 'pointer' }}>{isAnalyzing ? 'Đang phân tích...' : 'Phân tích AI'}</button></div>

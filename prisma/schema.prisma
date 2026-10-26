@@ -39,6 +39,8 @@ model User {
   managerAssignments SalesAssignment[] @relation("ManagerAssignments")
   saleAssignments    SalesAssignment[] @relation("SaleAssignments")
   salesReports       SalesReport[]
+  customerAssignments        CustomerAssignment[] @relation("CustomerAssignmentSale")
+  customerAssignmentsCreated CustomerAssignment[] @relation("CustomerAssignmentCreator")
 
   @@index([orgId])
 }
@@ -92,6 +94,26 @@ model SalesAssignment {
 
   @@index([assigneeId])
   @@index([managerId])
+}
+
+model CustomerAssignment {
+  id            String   @id @default(cuid())
+  customerKey   String   @unique
+  customerCode  String
+  customerName  String
+  businessGroup String
+  saleId        String
+  sale          User     @relation("CustomerAssignmentSale", fields: [saleId], references: [id], onDelete: Cascade)
+  assignedById  String
+  assignedBy    User     @relation("CustomerAssignmentCreator", fields: [assignedById], references: [id], onDelete: Cascade)
+  targetRevenue Float    @default(0)
+  periodStart   String
+  periodEnd     String
+  note          String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([saleId])
 }
 
 model AttendanceNote {
