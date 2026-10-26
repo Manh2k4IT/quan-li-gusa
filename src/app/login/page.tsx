@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
+const REMEMBERED_EMAIL_KEY = 'gusa_remembered_email';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -9,6 +11,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const remembered = localStorage.getItem(REMEMBERED_EMAIL_KEY);
+      if (remembered) setEmail(remembered);
+    } catch {}
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,6 +38,10 @@ export default function LoginPage() {
       return;
     }
 
+    try {
+      localStorage.setItem(REMEMBERED_EMAIL_KEY, email.trim().toLowerCase());
+    } catch {}
+
     router.push('/');
     router.refresh();
   }
@@ -46,7 +59,7 @@ export default function LoginPage() {
 
         <h2>Đăng nhập hệ thống</h2>
 
-        <form onSubmit={handleSubmit} className="auth-form" autoComplete="off">
+        <form onSubmit={handleSubmit} className="auth-form" autoComplete="on">
           <label>
             Email
             <input
@@ -54,7 +67,8 @@ export default function LoginPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="Nhập email"
-              autoComplete="off"
+              name="email"
+              autoComplete="username"
               required
             />
           </label>
@@ -66,7 +80,8 @@ export default function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="••••••••"
-              autoComplete="new-password"
+              name="password"
+              autoComplete="current-password"
               required
             />
           </label>

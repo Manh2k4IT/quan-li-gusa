@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { validateCredentials, SESSION_COOKIE } from '@/lib/auth';
+import { validateCredentials, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
@@ -17,10 +17,7 @@ export async function POST(request: Request) {
     response.cookies.set({
       name: SESSION_COOKIE,
       value: JSON.stringify(user),
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7,
+      ...sessionCookieOptions,
     });
 
     return response;

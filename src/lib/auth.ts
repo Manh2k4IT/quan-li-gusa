@@ -1,7 +1,8 @@
 import type { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies';
 import { prisma } from '@/lib/prisma';
+import { SESSION_COOKIE } from '@/lib/session-cookie';
 
-export const SESSION_COOKIE = 'gusa_session';
+export { SESSION_COOKIE, sessionCookieOptions } from '@/lib/session-cookie';
 
 export type Role = 'CEO' | 'MANAGER' | 'SALE';
 
