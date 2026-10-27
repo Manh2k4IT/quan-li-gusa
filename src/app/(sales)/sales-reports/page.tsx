@@ -244,7 +244,7 @@ export default function SalesReportsPage() {
             <label>Khoảng báo cáo<select value={period} onChange={(event) => setPeriod(event.target.value as typeof period)}><option value="day">Báo cáo ngày</option><option value="week">Báo cáo tuần</option><option value="month">Báo cáo tháng</option></select></label>
           </div>
 
-          <div className="stats-row" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', width: '100%', marginBottom: '20px' }}>
+          <div className="stats-row stats-row-3" style={{ width: '100%', marginBottom: '20px' }}>
             <div className="metric-card"><span>Doanh thu thực tế</span><strong>{formatVnd(totals.revenue)}</strong><small>{completion}% kế hoạch</small></div>
             <div className="metric-card"><span>Số báo cáo ngày</span><strong>{totals.reports.toLocaleString('vi-VN')}</strong><small>Theo khoảng đang xem</small></div>
             <div className="metric-card"><span>Trung bình / báo cáo</span><strong>{formatVnd(totals.reports ? totals.revenue / totals.reports : 0)}</strong><small>Doanh thu bình quân</small></div>

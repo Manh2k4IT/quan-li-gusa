@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Icon } from '@/components/icons';
 
 const threads = [
   {
@@ -25,6 +26,12 @@ const initialMessages = [
   { from: 'AI', text: 'Tôi đã phát hiện 3 nhóm khách hàng B2B có xu hướng chuyển đổi cao hơn trong 14 ngày qua.' },
   { from: 'Manager', text: 'Cho tôi biết nhóm nào nên ưu tiên nhất và ngân sách cần phân bổ bao nhiêu?' },
   { from: 'AI', text: 'Nhóm SaaS enterprise và manufacturing nên ưu tiên nhất; đề nghị tăng 15% ngân sách cho ad set này.' },
+];
+
+const SUGGESTIONS = [
+  'Tóm tắt doanh thu tháng này',
+  'Sản phẩm nào bán chạy nhất?',
+  'Khách hàng nào cần chăm sóc lại?',
 ];
 
 function renderMessage(text: string) {
@@ -60,6 +67,28 @@ export default function AIChatPage() {
   const [messages, setMessages] = useState<Array<{ from: string; text: string; kind?: 'error' | 'loading' }>>(initialMessages);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const list = messagesRef.current;
+    if (list) list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+  }, [messages]);
+
+  // Grow the composer with its content, up to the CSS max-height.
+  useEffect(() => {
+    const field = inputRef.current;
+    if (!field) return;
+    field.style.height = 'auto';
+    field.style.height = `${field.scrollHeight}px`;
+  }, [input]);
+
+  function startNewChat() {
+    if (loading) return;
+    setMessages([{ from: 'AI', text: 'Xin chào! Tôi có thể giúp gì cho bạn hôm nay?' }]);
+    setInput('');
+    inputRef.current?.focus();
+  }
 
   async function handleSend() {
     const trimmed = input.trim();
@@ -99,70 +128,88 @@ export default function AIChatPage() {
   }
 
   return (
-    <main className="page-layout">
+    <main className="page-layout assistant-page">
       <div className="page-header">
         <div>
           <p className="eyebrow">Trò chuyện AI</p>
           <h1>Trợ lý doanh nghiệp</h1>
         </div>
-        <Link href="/" className="primary-btn">Quay lại dashboard</Link>
+        <Link href="/" className="ghost-btn">Quay lại dashboard</Link>
       </div>
 
-      <div className="panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Cuộc trò chuyện</p>
-            <h3>Cuộc trò chuyện gần đây</h3>
-          </div>
-        </div>
-
-        <div className="chat-thread-list">
-          {threads.map((thread) => (
-            <article key={thread.title} className="chat-thread-item">
-              <div>
-                <h4>{thread.title}</h4>
-                <p>{thread.summary}</p>
-              </div>
-              <small>{thread.time}</small>
-            </article>
-          ))}
-        </div>
-      </div>
-
-      <div className="panel ai-panel large-ai-panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Trò chuyện trực tiếp</p>
-            <h3>Trợ lý AI</h3>
-          </div>
-          <span className="badge success">Trực tuyến</span>
-        </div>
-
-        <div className="chat-session">
-          {messages.map((message, index) => (
-            <div key={`${message.from}-${index}`} className={`chat-bubble ${message.from === 'AI' ? 'ai' : 'human'} ${message.kind ?? ''}`}>
-              <div className="chat-avatar">{message.from === 'AI' ? 'AI' : 'U'}</div>
-              <div className="chat-message-text">{renderMessage(message.text)}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="chat-input-row">
-          <input
-            type="text"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                handleSend();
-              }
-            }}
-            placeholder="Nhập câu hỏi cho trợ lý AI..."
-          />
-          <button className="primary-btn" onClick={handleSend} disabled={loading}>
-            {loading ? 'Đang gửi...' : 'Gửi'}
+      <div className="assistant-layout">
+        <aside className="assistant-threads">
+          <button type="button" className="assistant-new-chat" onClick={startNewChat}>
+            <Icon name="plus" size={16} />
+            Cuộc trò chuyện mới
           </button>
-        </div>
+          <p className="assistant-threads-title">Gần đây</p>
+          <div className="assistant-thread-list">
+            {threads.map((thread) => (
+              <article key={thread.title} className="assistant-thread">
+                <div className="assistant-thread-head">
+                  <h4>{thread.title}</h4>
+                  <small>{thread.time}</small>
+                </div>
+                <p>{thread.summary}</p>
+              </article>
+            ))}
+          </div>
+        </aside>
+
+        <section className="assistant-chat">
+          <header className="assistant-chat-header">
+            <span className="assistant-avatar ai"><Icon name="sparkles" size={18} /></span>
+            <div>
+              <h3>Trợ lý AI</h3>
+              <small><span className="assistant-online-dot" />Trực tuyến · Phân tích dữ liệu ERP</small>
+            </div>
+          </header>
+
+          <div className="assistant-messages" ref={messagesRef}>
+            {messages.map((message, index) => {
+              const fromAi = message.from === 'AI';
+              return (
+                <div key={`${message.from}-${index}`} className={`assistant-message ${fromAi ? 'ai' : 'human'} ${message.kind ?? ''}`}>
+                  {fromAi ? <span className="assistant-avatar ai"><Icon name="sparkles" size={15} /></span> : null}
+                  <div className="assistant-bubble">
+                    {message.kind === 'loading' ? <span className="assistant-typing" aria-label="Đang trả lời"><i /><i /><i /></span> : renderMessage(message.text)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="assistant-composer">
+            <div className="assistant-suggestions">
+              {SUGGESTIONS.map((suggestion) => (
+                <button key={suggestion} type="button" onClick={() => { setInput(suggestion); inputRef.current?.focus(); }}>
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+            <div className="assistant-input">
+              <textarea
+                ref={inputRef}
+                rows={1}
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  // Enter sends; Shift+Enter inserts a newline.
+                  if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Nhập câu hỏi cho trợ lý AI..."
+              />
+              <button type="button" className="assistant-send" onClick={handleSend} disabled={loading || !input.trim()} aria-label="Gửi">
+                <Icon name="send" size={18} />
+              </button>
+            </div>
+            <small className="assistant-hint">Enter để gửi · Shift + Enter để xuống dòng</small>
+          </div>
+        </section>
       </div>
     </main>
   );

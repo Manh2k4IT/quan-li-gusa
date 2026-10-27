@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import DashboardOverview from '@/components/dashboard-overview';
-import GreetingTicker from '@/components/greeting-ticker';
 import WarehouseReport from '@/components/warehouse-report';
 import { getRoleLabel, getSession } from '@/lib/auth';
 import { getErpDashboardData } from '@/lib/erp';
@@ -33,8 +32,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ w
             <p className="eyebrow">Trung tâm điều hành</p>
             <h2>Dashboard điều hành</h2>
           </div>
-
-          <GreetingTicker name={session.name} />
 
           <div className="topbar-actions">
             <span className="status-badge">{session.name} · {getRoleLabel(session.role)}</span>

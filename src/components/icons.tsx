@@ -18,6 +18,10 @@ const ICON_PATHS = {
   bookUp: ['M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z', 'M22 12V3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h3', 'M19 22v-6', 'M16 19l3-3 3 3'],
   bell: ['M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9', 'M10.3 21a1.94 1.94 0 0 0 3.4 0'],
   logOut: ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4', 'M16 17l5-5-5-5', 'M21 12H9'],
+  menu: ['M4 6h16', 'M4 12h16', 'M4 18h16'],
+  close: ['M18 6 6 18', 'M6 6l12 12'],
+  send: ['M22 2 11 13', 'M22 2l-7 20-4-9-9-4z'],
+  plus: ['M12 5v14', 'M5 12h14'],
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

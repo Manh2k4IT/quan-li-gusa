@@ -189,7 +189,7 @@ export default function DailySalesReportTable({ category }: { category: Category
         <Link href="/" className="primary-btn">Về dashboard</Link>
       </div>
 
-      <div className="stats-row" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+      <div className="stats-row stats-row-3">
         <div className="metric-card"><span>Số báo cáo</span><strong>{visibleReports.length}</strong></div>
         <div className="metric-card"><span>Tổng doanh thu</span><strong>{formatVnd(totalRevenue)}</strong></div>
         <section className="metric-card" style={{ padding: '18px 20px', borderColor: 'rgba(245, 215, 110, 0.42)', background: 'linear-gradient(145deg, rgba(83, 62, 13, 0.48), rgba(24, 28, 25, 0.9))' }}>
@@ -203,7 +203,7 @@ export default function DailySalesReportTable({ category }: { category: Category
         </section>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(300px, 0.75fr)', gap: '18px', marginBottom: '18px' }}>
+      <div className="daily-sales-insight-grid">
         <section className="panel" style={{ minHeight: '250px' }}>
           <div className="panel-header"><div><p className="eyebrow">Phân tích AI</p><h3>Phân tích báo cáo</h3></div><button type="button" onClick={analyzeVisibleReports} disabled={isAnalyzing || !visibleReports.length} className="primary-btn" style={{ padding: '9px 13px', fontSize: '0.78rem' }}>{isAnalyzing ? 'Đang phân tích...' : 'Phân tích AI'}</button></div>
           <p style={{ color: '#b9d8f8', lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0 }}>{aiAnalysis || 'Chọn bộ lọc rồi bấm Phân tích AI để xem nhận xét về các báo cáo đang hiển thị.'}</p>

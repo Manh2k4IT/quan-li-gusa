@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Icon, type IconName } from '@/components/icons';
 import type { ErpDashboardPayload } from '@/lib/erp';
 
 const monthlyRevenue = [38, 46, 52, 60, 58, 74, 82, 88, 80, 94, 98, 106];
@@ -11,6 +12,27 @@ const monthLabels = ['Th1', 'Th2', 'Th3', 'Th4', 'Th5', 'Th6', 'Th7', 'Th8', 'Th
 
 const formatVnd = (value: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
+
+// Visual treatment for the four top KPI tiles, in the order the ERP metrics arrive.
+const KPI_META: { icon: IconName; tone: string }[] = [
+  { icon: 'chart', tone: 'sky' },
+  { icon: 'target', tone: 'emerald' },
+  { icon: 'users', tone: 'violet' },
+  { icon: 'package', tone: 'amber' },
+];
+
+// Splits a trailing currency symbol off so it can be styled smaller; groups bare integers ("14817" → "14.817").
+function splitKpiValue(value: string) {
+  const match = value.match(/^(.*?)[\s ]*(₫|đ|VND)$/);
+  const amount = (match ? match[1] : value).trim();
+  return { amount: /^\d+$/.test(amount) ? Number(amount).toLocaleString('vi-VN') : amount, unit: match?.[2] ?? '' };
+}
+
+function kpiTrend(change: string | undefined) {
+  const numeric = Number.parseFloat((change ?? '').replace(',', '.'));
+  if (Number.isNaN(numeric) || numeric === 0) return 'flat';
+  return numeric > 0 ? 'up' : 'down';
+}
 
 const fallbackOrderComparison = monthLabels.map((label, index) => ({
   label: `Tháng ${index + 1}`,
@@ -356,14 +378,27 @@ export default function DashboardOverview({ erpData }: { erpData: ErpDashboardPa
 
   return (
     <>
-      <div className="stats-row" style={{ marginBottom: '20px', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
-        {topMetrics.map((metric) => (
-          <div key={metric.label} className="metric-card" style={{ minHeight: '150px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '1.05rem', color: '#dfe9f8' }}>{metric.label}</span>
-            <strong style={{ marginTop: '10px', fontSize: 'clamp(1.25rem, 1.6vw, 1.9rem)', lineHeight: 1.08, letterSpacing: '-0.03em', maxWidth: '100%', overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'normal' }}>{metric.value}</strong>
-            <small className={(metric.change ?? '').startsWith('-') ? 'text-down' : 'text-up'} style={{ fontSize: '1rem', display: 'inline-block', marginTop: '8px' }}>{metric.change ?? '0%'}</small>
-          </div>
-        ))}
+      <div className="stats-row overview-stats" style={{ marginBottom: '20px' }}>
+        {topMetrics.map((metric, index) => {
+          const meta = KPI_META[index % KPI_META.length];
+          const { amount, unit } = splitKpiValue(metric.value);
+          const trend = kpiTrend(metric.change);
+          return (
+            <div key={metric.label} className={`kpi-tile tone-${meta.tone}`}>
+              <div className="kpi-tile-head">
+                <span className="kpi-tile-icon"><Icon name={meta.icon} size={18} /></span>
+                <span className="kpi-tile-label">{metric.label}</span>
+              </div>
+              <strong className="kpi-tile-value">
+                {amount}
+                {unit ? <span className="kpi-tile-unit">{unit}</span> : null}
+              </strong>
+              <span className={`kpi-tile-trend ${trend}`}>
+                {trend === 'up' ? '↑ ' : trend === 'down' ? '↓ ' : ''}{metric.change ?? '0%'}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <div className="monthly-dashboard-grid">

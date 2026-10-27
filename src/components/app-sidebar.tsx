@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Icon, type IconName } from '@/components/icons';
@@ -82,6 +83,7 @@ export default function AppSidebar({ user }: { user: SidebarUser | null }) {
   const pathname = usePathname();
   const notifications = useNotifications();
   const searchParams = useSearchParams();
+  const [menuOpen, setMenuOpen] = useState(false);
   const sections = user?.role === 'SALE' ? [SALE_CUSTOMER_SECTION, SALES_SECTION] : MANAGEMENT_SECTIONS;
 
   const isChildActive = (child: NavChild) => {
@@ -93,69 +95,79 @@ export default function AppSidebar({ user }: { user: SidebarUser | null }) {
   };
 
   return (
-    <aside className="sidebar">
-      <Link href="/" className="brand-box">
-        <div className="brand-mark">G</div>
-        <div>
-          <p className="eyebrow">Hệ thống quản trị</p>
-          <h1>GUSA</h1>
-        </div>
-      </Link>
+    <aside className={`sidebar${menuOpen ? ' open' : ''}`}>
+      <div className="sidebar-head">
+        {/* Only visible on narrow screens, where the nav collapses into a drawer. */}
+        <button type="button" className="sidebar-toggle" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'}>
+          <Icon name={menuOpen ? 'close' : 'menu'} size={20} />
+        </button>
+        <Link href="/" className="brand-box" onClick={() => setMenuOpen(false)}>
+          <div className="brand-mark">G</div>
+          <div>
+            <p className="eyebrow">Hệ thống quản trị</p>
+            <h1>GUSA</h1>
+          </div>
+        </Link>
+      </div>
 
-      <nav className="nav">
-        {sections.map((section) => (
-          <div key={section.title} className="nav-section">
-            <span className="nav-title">{section.title}</span>
-            {section.items.map((item) => {
-              const active = [item.href, ...(item.match ?? [])].some((href) => isPathActive(pathname, href));
-              const unread = notifications?.unreadFor([item.href, ...(item.match ?? [])]) ?? 0;
-              const link = (
-                <>
-                  <span className="nav-icon"><Icon name={item.icon} /></span>
-                  <span className="nav-label">{item.label}</span>
-                  {unread ? <span className="nav-badge" aria-label={`${unread} thông báo mới`}>{unread > 9 ? '9+' : unread}</span> : null}
-                </>
-              );
-
-              if (!item.children) {
-                return (
-                  <Link key={item.href} href={item.href} className={`nav-item${active ? ' active' : ''}`}>
-                    {link}
-                  </Link>
+      {/* On narrow screens the panel is a drawer; the backdrop beside it closes it. */}
+      <div className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+      <div className="sidebar-panel">
+        <nav className="nav" onClick={(event) => { if ((event.target as HTMLElement).closest('a')) setMenuOpen(false); }}>
+          {sections.map((section) => (
+            <div key={section.title} className="nav-section">
+              <span className="nav-title">{section.title}</span>
+              {section.items.map((item) => {
+                const active = [item.href, ...(item.match ?? [])].some((href) => isPathActive(pathname, href));
+                const unread = notifications?.unreadFor([item.href, ...(item.match ?? [])]) ?? 0;
+                const link = (
+                  <>
+                    <span className="nav-icon"><Icon name={item.icon} /></span>
+                    <span className="nav-label">{item.label}</span>
+                    {unread ? <span className="nav-badge" aria-label={`${unread} thông báo mới`}>{unread > 9 ? '9+' : unread}</span> : null}
+                  </>
                 );
-              }
 
-              return (
-                <details key={item.href} className="nav-group" open={active || undefined}>
-                  <summary className={`nav-item nav-summary${active ? ' active' : ''}`}>{link}</summary>
-                  <div className="nav-submenu">
-                    {item.children.map((child) => (
-                      <Link key={child.href} href={child.href} className={`nav-submenu-item${isChildActive(child) ? ' active' : ''}`}>
-                        {child.label}
-                      </Link>
-                    ))}
-                  </div>
-                </details>
-              );
-            })}
-          </div>
-        ))}
-      </nav>
+                if (!item.children) {
+                  return (
+                    <Link key={item.href} href={item.href} className={`nav-item${active ? ' active' : ''}`}>
+                      {link}
+                    </Link>
+                  );
+                }
 
-      {user ? (
-        <div className="sidebar-user">
-          <div className="sidebar-user-avatar">{user.name.charAt(0).toUpperCase()}</div>
-          <div className="sidebar-user-info">
-            <strong>{user.name}</strong>
-            <small>{user.roleLabel}</small>
+                return (
+                  <details key={item.href} className="nav-group" open={active || undefined}>
+                    <summary className={`nav-item nav-summary${active ? ' active' : ''}`}>{link}</summary>
+                    <div className="nav-submenu">
+                      {item.children.map((child) => (
+                        <Link key={child.href} href={child.href} className={`nav-submenu-item${isChildActive(child) ? ' active' : ''}`}>
+                          {child.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+
+        {user ? (
+          <div className="sidebar-user">
+            <div className="sidebar-user-avatar">{user.name.charAt(0).toUpperCase()}</div>
+            <div className="sidebar-user-info">
+              <strong>{user.name}</strong>
+              <small>{user.roleLabel}</small>
+            </div>
+            <form action="/api/logout" method="POST">
+              <button type="submit" className="sidebar-logout" title="Đăng xuất" aria-label="Đăng xuất">
+                <Icon name="logOut" size={16} />
+              </button>
+            </form>
           </div>
-          <form action="/api/logout" method="POST">
-            <button type="submit" className="sidebar-logout" title="Đăng xuất" aria-label="Đăng xuất">
-              <Icon name="logOut" size={16} />
-            </button>
-          </form>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </aside>
   );
 }
