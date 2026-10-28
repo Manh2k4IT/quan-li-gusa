@@ -209,6 +209,8 @@ function buildAlerts(rows: ProgressRow[], today: string) {
 
     if (percent >= 100) {
       reached.push(`🎉 Chúc mừng ${row.saleName}! Khách ${row.name} đã ĐẠT MỤC TIÊU (${percent}%)`);
+    } else if (daysLeft < 0) {
+      urgent.push(`🔴 ${row.name} (${row.saleName}): ĐÃ HẾT KỲ ngày ${formatDay(periodEnd)} · KHÔNG ĐẠT mục tiêu (chỉ đạt ${percent}%)`);
     } else if (daysLeft <= URGENT_DAYS) {
       urgent.push(`🚨 ${row.name} (${row.saleName}): ${daysLeft === 0 ? 'HẾT KỲ HÔM NAY' : `CÒN ${daysLeft} NGÀY hết kỳ`} (${formatDay(periodEnd)}) mà mới đạt ${percent}%`);
     } else if (elapsedPercent - percent >= BEHIND_PACE_POINTS) {
