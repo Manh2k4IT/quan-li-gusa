@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getCustomerDirectory, getPreviousMonthRange, sumOrdersBetween } from '@/lib/customer-directory';
-import { recordEndedAssignments } from '@/lib/assignment-history';
+import { closeEndedAssignmentsSafely } from '@/lib/assignment-history';
 
 const DAY_MS = 86_400_000;
 
@@ -24,8 +24,8 @@ export async function GET(request: Request) {
     : { saleId: currentUser?.id ?? '__none__' };
 
   try {
-    // Periods that ended since anyone last looked get their result stored before history is read.
-    await recordEndedAssignments().catch((error) => console.error('Recording ended assignments failed:', error));
+    // Periods that ended since anyone last looked are stored in history and released before reading.
+    await closeEndedAssignmentsSafely();
 
     const [assignments, directory, sales, results] = await Promise.all([
       prisma.customerAssignment.findMany({ where, include: { sale: { select: { id: true, name: true } }, assignedBy: { select: { name: true } } }, orderBy: { updatedAt: 'desc' } }),

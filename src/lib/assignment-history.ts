@@ -51,8 +51,28 @@ export async function recordAssignmentResults(where: Prisma.CustomerAssignmentWh
   return recorded;
 }
 
-export function recordEndedAssignments() {
-  return recordAssignmentResults({ periodEnd: { lt: vnToday() } }, 'completed');
+// The day after a period ends, the customer stops being assigned. Only assignments whose result is
+// already stored are released, so a failed ERP read leaves them in place for the next run.
+export async function closeEndedAssignments() {
+  const today = vnToday();
+  await recordAssignmentResults({ periodEnd: { lt: today } }, 'completed');
+
+  const ended = await prisma.customerAssignment.findMany({ where: { periodEnd: { lt: today } }, select: { id: true, customerKey: true, saleId: true, periodStart: true, periodEnd: true } });
+  const closable: string[] = [];
+  for (const { id, customerKey, saleId, periodStart, periodEnd } of ended) {
+    const stored = await prisma.assignmentResult.findUnique({ where: { customerKey_saleId_periodStart_periodEnd: { customerKey, saleId, periodStart, periodEnd } }, select: { id: true } });
+    if (stored) closable.push(id);
+  }
+  if (closable.length) await prisma.customerAssignment.deleteMany({ where: { id: { in: closable } } });
+  return closable.length;
+}
+
+export async function closeEndedAssignmentsSafely() {
+  try {
+    await closeEndedAssignments();
+  } catch (error) {
+    console.error('Closing ended assignments failed:', error);
+  }
 }
 
 // Used by the actions that end assignments early; history is a side record, so it never blocks them.

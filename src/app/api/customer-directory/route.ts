@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { closeEndedAssignmentsSafely } from '@/lib/assignment-history';
 import { getCustomerDirectory, getPreviousMonthRange, sumOrdersBetween } from '@/lib/customer-directory';
 
 const PAGE_SIZE = 50;
@@ -19,6 +20,9 @@ export async function GET(request: Request) {
   const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
 
   try {
+    // Customers whose period ended show as unassigned again.
+    await closeEndedAssignmentsSafely();
+
     const [directory, assignments, sales] = await Promise.all([
       getCustomerDirectory(),
       prisma.customerAssignment.findMany({ include: { sale: { select: { id: true, name: true } } } }),

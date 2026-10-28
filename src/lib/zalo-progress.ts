@@ -148,9 +148,12 @@ export async function notifyNewOrders() {
 export async function buildWeeklyReport(now = new Date()) {
   const today = vnParts(now).date;
   const { active, saleTotals, weekStart } = await loadProgress(today);
+  // Ended periods are released from assignment the next day, so their outcome comes from the stored history.
+  const endedThisWeek = await prisma.assignmentResult.findMany({ where: { outcome: 'completed', periodEnd: { gte: shiftDate(today, -7), lt: today } }, orderBy: { periodEnd: 'asc' } });
 
   const lines = ['📊 BÁO CÁO TIẾN ĐỘ KHÁCH HÀNG', `🗓 Tuần ${formatShortDay(weekStart)} – ${formatDay(today)}`, DIVIDER];
-  if (!active.length) return [...lines, 'Hiện chưa có khách hàng nào đang được giao cho sale.'].join('\n');
+  if (!active.length && !endedThisWeek.length) return [...lines, 'Hiện chưa có khách hàng nào đang được giao cho sale.'].join('\n');
+  if (!active.length) lines.push('', 'Hiện không còn khách nào đang được giao cho sale.');
 
   const bySale = new Map<string, ProgressRow[]>();
   for (const row of active) bySale.set(row.assignment.saleId, [...(bySale.get(row.assignment.saleId) ?? []), row]);
@@ -185,6 +188,17 @@ export async function buildWeeklyReport(now = new Date()) {
     }
   }
 
+  if (endedThisWeek.length) {
+    lines.push('', DIVIDER, `🏁 KẾT THÚC KỲ TRONG TUẦN (${endedThisWeek.length})`);
+    for (const result of endedThisWeek) {
+      const percent = result.targetRevenue > 0 ? Math.round((result.achievedRevenue / result.targetRevenue) * 100) : 0;
+      lines.push(result.reached
+        ? `🎉 ${result.customerName} (${result.saleName}): ĐẠT MỤC TIÊU ${percent}% · kỳ đến ${formatDay(result.periodEnd)}`
+        : `🔴 ${result.customerName} (${result.saleName}): KHÔNG ĐẠT, chỉ đạt ${percent}% · kỳ đến ${formatDay(result.periodEnd)}`);
+    }
+    lines.push('Các khách này đã tự động bỏ giao, xem lại trong Lịch sử kết quả.');
+  }
+
   const alerts = buildAlerts(active, today);
   lines.push('', DIVIDER, '🔔 CẢNH BÁO & GHI NHẬN');
   if (alerts.length) lines.push(...alerts);
@@ -206,11 +220,11 @@ function buildAlerts(rows: ProgressRow[], today: string) {
     const daysLeft = daysBetween(today, periodEnd);
     const totalDays = daysBetween(periodStart, periodEnd) + 1;
     const elapsedPercent = Math.round(((daysBetween(periodStart, today) + 1) / totalDays) * 100);
+    // Ended periods are reported from history; one still assigned here only means storing its result failed.
+    if (daysLeft < 0) continue;
 
     if (percent >= 100) {
       reached.push(`🎉 Chúc mừng ${row.saleName}! Khách ${row.name} đã ĐẠT MỤC TIÊU (${percent}%)`);
-    } else if (daysLeft < 0) {
-      urgent.push(`🔴 ${row.name} (${row.saleName}): ĐÃ HẾT KỲ ngày ${formatDay(periodEnd)} · KHÔNG ĐẠT mục tiêu (chỉ đạt ${percent}%)`);
     } else if (daysLeft <= URGENT_DAYS) {
       urgent.push(`🚨 ${row.name} (${row.saleName}): ${daysLeft === 0 ? 'HẾT KỲ HÔM NAY' : `CÒN ${daysLeft} NGÀY hết kỳ`} (${formatDay(periodEnd)}) mà mới đạt ${percent}%`);
     } else if (elapsedPercent - percent >= BEHIND_PACE_POINTS) {

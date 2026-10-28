@@ -1,4 +1,4 @@
-// How often the server stores results of ended assignment periods, checks ERP for new orders from
+// How often the server stores results of ended assignment periods and releases those customers, checks ERP for new orders from
 // assigned customers and whether the weekly Zalo report is due.
 const BACKGROUND_JOB_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -10,12 +10,12 @@ export async function register() {
   if (state.backgroundJobsStarted) return;
   state.backgroundJobsStarted = true;
 
-  const { recordEndedAssignments } = await import('@/lib/assignment-history');
+  const { closeEndedAssignmentsSafely } = await import('@/lib/assignment-history');
   const { runZaloJobs } = await import('@/lib/zalo-progress');
   const zaloEnabled = process.env.ZALO_NOTIFY_ENABLED !== 'false';
 
   const tick = async () => {
-    await recordEndedAssignments().catch((error) => console.error('Recording ended assignments failed:', error));
+    await closeEndedAssignmentsSafely();
     if (zaloEnabled) await runZaloJobs();
   };
 
