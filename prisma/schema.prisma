@@ -91,6 +91,15 @@ model SalesAssignment {
   status         String   @default("Đang thực hiện")
   date           String
   attachmentName String?
+  // "manager" when a manager assigned it, "sale" when the sale proposed it.
+  source         String   @default("manager")
+  target         Float    @default(0)
+  dueDate        String?
+  // The sale's report is kept apart from `note`, which holds the plan's own description.
+  report         String   @default("")
+  reportedAt     DateTime?
+  feedback       String   @default("")
+  reviewedAt     DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

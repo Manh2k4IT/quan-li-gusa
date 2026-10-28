@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { categorySlug, PLAN_STATUS, planStage } from '@/lib/plan-workflow';
 
 export type AppNotification = {
   id: string;
@@ -25,16 +26,25 @@ function toIso(value: unknown) {
   return Number.isNaN(date.getTime()) ? new Date(0).toISOString() : date.toISOString();
 }
 
-function planRoute(category: string) {
-  const normalized = category.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  if (normalized.includes('ben thanh')) return '/plan/fabric-ben-thanh';
-  if (normalized.includes('vai')) return '/plan/fabric-q4';
-  return '/plan/fashion-q4';
-}
+const planRoute = (category: string) => `/plan?category=${categorySlug(category)}`;
 
 const formatVnd = (value: number) => `${Math.round(value).toLocaleString('vi-VN')} đ`;
 
-type PlanRow = { id: string; title: string; category: string; status: string; updatedAt: string; createdAt: string; managerName: string; assigneeName: string };
+type PlanRow = { id: string; title: string; category: string; status: string; source: string; feedback: string; reportedAt: string | null; updatedAt: string; createdAt: string; managerName: string; assigneeName: string };
+
+// What a sale hears about their plan; their own proposals and reports waiting for review need no notice.
+function salePlanNotice(plan: PlanRow): { kind: AppNotification['kind']; title: string; at: string } | null {
+  switch (planStage(plan)) {
+    case 'done': return { kind: 'approved', title: 'Kế hoạch đã được duyệt hoàn thành', at: plan.updatedAt };
+    case 'failed': return { kind: 'rejected', title: 'Báo cáo kế hoạch không đạt', at: plan.updatedAt };
+    case 'declined': return { kind: 'rejected', title: 'Đề xuất kế hoạch bị từ chối', at: plan.updatedAt };
+    case 'revise': return { kind: 'rejected', title: `${plan.managerName ?? 'Quản lý'} yêu cầu bổ sung báo cáo`, at: plan.updatedAt };
+    case 'inProgress': return plan.source === 'sale'
+      ? { kind: 'approved', title: 'Đề xuất kế hoạch đã được duyệt', at: plan.updatedAt }
+      : { kind: 'plan', title: `${plan.managerName ?? 'Quản lý'} giao kế hoạch mới`, at: plan.createdAt };
+    default: return null;
+  }
+}
 
 export async function GET() {
   const session = getSession(await cookies());
@@ -47,7 +57,7 @@ export async function GET() {
 
   try {
     const plans = await prisma.$queryRawUnsafe<PlanRow[]>(
-      `SELECT sa.id, sa.title, sa.category, sa.status, sa.updatedAt, sa.createdAt, m.name AS managerName, a.name AS assigneeName
+      `SELECT sa.id, sa.title, sa.category, sa.status, sa.source, sa.feedback, sa.reportedAt, sa.updatedAt, sa.createdAt, m.name AS managerName, a.name AS assigneeName
        FROM SalesAssignment sa
        LEFT JOIN User m ON m.id = sa.managerId
        LEFT JOIN User a ON a.id = sa.assigneeId
@@ -59,11 +69,12 @@ export async function GET() {
 
     if (isManager) {
       for (const plan of plans) {
-        if (plan.status !== 'Chờ xác nhận') continue;
+        const isReport = plan.status === PLAN_STATUS.reported;
+        if (!isReport && plan.status !== PLAN_STATUS.proposed) continue;
         items.push({
           id: `plan-review-${plan.id}-${plan.updatedAt}`,
           kind: 'plan',
-          title: `${plan.assigneeName ?? 'Sale'} đã nộp báo cáo kế hoạch`,
+          title: isReport ? `${plan.assigneeName ?? 'Sale'} đã nộp báo cáo kế hoạch` : `${plan.assigneeName ?? 'Sale'} đề xuất kế hoạch mới`,
           body: `${plan.title || 'Kế hoạch'} · ${plan.category} — đang chờ duyệt`,
           href: planRoute(plan.category),
           at: toIso(plan.updatedAt),
@@ -87,15 +98,15 @@ export async function GET() {
       }
     } else {
       for (const plan of plans) {
-        const status = plan.status;
-        const isFinal = status === 'Đã duyệt' || status === 'Không duyệt';
+        const notice = salePlanNotice(plan);
+        if (!notice) continue;
         items.push({
-          id: `plan-${plan.id}-${status}`,
-          kind: status === 'Đã duyệt' ? 'approved' : status === 'Không duyệt' ? 'rejected' : 'plan',
-          title: isFinal ? `Kế hoạch ${status === 'Đã duyệt' ? 'đã được duyệt' : 'không được duyệt'}` : `${plan.managerName ?? 'Quản lý'} giao kế hoạch mới`,
+          id: `plan-${plan.id}-${plan.status}-${toIso(notice.at)}`,
+          kind: notice.kind,
+          title: notice.title,
           body: `${plan.title || 'Kế hoạch'} · ${plan.category}`,
           href: '/sales-plan',
-          at: toIso(isFinal ? plan.updatedAt : plan.createdAt),
+          at: toIso(notice.at),
         });
       }
 
