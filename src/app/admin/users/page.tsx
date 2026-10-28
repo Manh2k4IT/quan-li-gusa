@@ -162,7 +162,24 @@ async function deleteUser(formData: FormData) {
     return;
   }
 
-  await prisma.user.delete({ where: { id: userId } });
+  const actor = await prisma.user.findUnique({ where: { email: session.email.toLowerCase() }, select: { id: true } });
+
+  // Foreign keys block deleting a user who still owns records, so detach or hand them over first.
+  // Revenue reports keep the salesperson's name and email; plans and customers they handed out move to whoever deletes them.
+  await prisma.$transaction([
+    prisma.salesReport.updateMany({ where: { salespersonId: userId }, data: { salespersonId: null } }),
+    prisma.activityLog.updateMany({ where: { userId }, data: { userId: null } }),
+    prisma.salesAssignment.deleteMany({ where: { assigneeId: userId } }),
+    ...(actor
+      ? [
+          prisma.salesAssignment.updateMany({ where: { managerId: userId }, data: { managerId: actor.id } }),
+          prisma.customerAssignment.updateMany({ where: { assignedById: userId, saleId: { not: userId } }, data: { assignedById: actor.id } }),
+        ]
+      : [prisma.salesAssignment.deleteMany({ where: { managerId: userId } })]),
+    prisma.document.deleteMany({ where: { ownerId: userId } }),
+    prisma.dashboard.deleteMany({ where: { ownerId: userId } }),
+    prisma.user.delete({ where: { id: userId } }),
+  ]);
 
   await recordActivity({
     userEmail: session.email,
