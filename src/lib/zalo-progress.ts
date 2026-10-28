@@ -7,6 +7,10 @@ const DAY_MS = 86_400_000;
 const WEEKLY_REPORT_HOUR = 8;
 const DIVIDER = '━━━━━━━━━━━━━━━━';
 const BAR_SLOTS = 10;
+// A customer below target with this many days or fewer left in its period is flagged as urgent.
+const URGENT_DAYS = 7;
+// Flagged as behind when the share of the period already elapsed exceeds the share of target reached by this many points.
+const BEHIND_PACE_POINTS = 20;
 
 const formatDay = (isoDate: string) => isoDate.slice(0, 10).split('-').reverse().join('/');
 const formatShortDay = (isoDate: string) => formatDay(isoDate).slice(0, 5);
@@ -114,7 +118,11 @@ export async function notifyNewOrders() {
   for (const { row, order } of candidates) {
     if (seenIds.has(order.id)) continue;
     const sale = saleTotals.get(row.assignment.saleId)!;
+    const target = row.assignment.targetRevenue;
+    // This order is the one that pushed the customer over its target.
+    const justReached = target > 0 && row.achieved >= target && row.achieved - order.total < target;
     await sendZaloGroupText([
+      ...(justReached ? [`🎉🎉 CHÚC MỪNG ${row.saleName.toUpperCase()}! Khách ${row.name} vừa ĐẠT MỤC TIÊU với đơn này!`, ''] : []),
       '🛒 KHÁCH HÀNG PHÁT SINH ĐƠN MỚI',
       DIVIDER,
       `🏷 Khách hàng: ${customerLabel(row)}`,
@@ -176,8 +184,38 @@ export async function buildWeeklyReport(now = new Date()) {
     }
   }
 
-  lines.push('', DIVIDER, `Tổng: ${active.length} khách · ${withOrdersTotal} có đơn · ${active.length - withOrdersTotal} không có đơn`);
+  const alerts = buildAlerts(active, today);
+  lines.push('', DIVIDER, '🔔 CẢNH BÁO & GHI NHẬN');
+  if (alerts.length) lines.push(...alerts);
+  else lines.push('✅ Không có khách nào cần chú ý tuần này.');
+  lines.push('', `📌 ${active.length} khách · ${withOrdersTotal} có đơn · ${active.length - withOrdersTotal} không có đơn trong tuần`);
   return lines.join('\n');
+}
+
+// Customers ending soon without reaching target come first, then ones behind pace, then congratulations.
+function buildAlerts(rows: ProgressRow[], today: string) {
+  const urgent: string[] = [];
+  const behind: string[] = [];
+  const reached: string[] = [];
+
+  for (const row of rows) {
+    const { periodStart, periodEnd, targetRevenue } = row.assignment;
+    if (periodStart > today || targetRevenue <= 0) continue;
+    const percent = Math.round((row.achieved / targetRevenue) * 100);
+    const daysLeft = daysBetween(today, periodEnd);
+    const totalDays = daysBetween(periodStart, periodEnd) + 1;
+    const elapsedPercent = Math.round(((daysBetween(periodStart, today) + 1) / totalDays) * 100);
+
+    if (percent >= 100) {
+      reached.push(`🎉 Chúc mừng ${row.saleName}! Khách ${row.name} đã ĐẠT MỤC TIÊU (${percent.toLocaleString('vi-VN')}%)`);
+    } else if (daysLeft <= URGENT_DAYS) {
+      urgent.push(`🚨 ${row.name} (${row.saleName}): ${daysLeft === 0 ? 'HẾT KỲ HÔM NAY' : `CÒN ${daysLeft} NGÀY hết kỳ`} (${formatDay(periodEnd)}) mà mới đạt ${percent}%`);
+    } else if (elapsedPercent - percent >= BEHIND_PACE_POINTS) {
+      behind.push(`⚠️ ${row.name} (${row.saleName}): CHẬM TIẾN ĐỘ · đã qua ${elapsedPercent}% thời gian, mới đạt ${percent}%`);
+    }
+  }
+
+  return [...urgent, ...behind, ...reached];
 }
 
 export async function sendWeeklyReport() {
