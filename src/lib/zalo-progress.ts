@@ -15,14 +15,18 @@ const BEHIND_PACE_POINTS = 20;
 const formatDay = (isoDate: string) => isoDate.slice(0, 10).split('-').reverse().join('/');
 const formatShortDay = (isoDate: string) => formatDay(isoDate).slice(0, 5);
 
+// "2,3" below 10x, whole numbers above; again no thousands separators.
+const formatTimes = (ratio: number) => (ratio < 10 ? ratio.toFixed(1).replace('.', ',') : String(Math.round(ratio)));
+
 // Zalo group messages show progress only, never revenue amounts.
 function progressLine(achieved: number, target: number) {
   if (target <= 0) return 'Chưa đặt mục tiêu';
   const percent = Math.round((achieved / target) * 100);
   const filled = Math.min(BAR_SLOTS, Math.round((percent / 100) * BAR_SLOTS));
   const bar = `${'▰'.repeat(filled)}${'▱'.repeat(BAR_SLOTS - filled)}`;
-  const tail = percent >= 100 ? `🎯 vượt ${(percent - 100).toLocaleString('vi-VN')}%` : `còn ${100 - percent}%`;
-  return `${bar} ${percent.toLocaleString('vi-VN')}% · ${tail}`;
+  // Percentages stay without thousands separators: Vietnamese "16.383%" reads as sixteen percent.
+  const tail = percent >= 200 ? `🎯 gấp ${formatTimes(achieved / target)} lần mục tiêu` : percent >= 100 ? `🎯 vượt ${percent - 100}%` : `còn ${100 - percent}%`;
+  return `${bar} ${percent}% · ${tail}`;
 }
 
 function vnParts(now = new Date()) {
@@ -207,7 +211,7 @@ function buildAlerts(rows: ProgressRow[], today: string) {
     const elapsedPercent = Math.round(((daysBetween(periodStart, today) + 1) / totalDays) * 100);
 
     if (percent >= 100) {
-      reached.push(`🎉 Chúc mừng ${row.saleName}! Khách ${row.name} đã ĐẠT MỤC TIÊU (${percent.toLocaleString('vi-VN')}%)`);
+      reached.push(`🎉 Chúc mừng ${row.saleName}! Khách ${row.name} đã ĐẠT MỤC TIÊU (${percent}%)`);
     } else if (daysLeft <= URGENT_DAYS) {
       urgent.push(`🚨 ${row.name} (${row.saleName}): ${daysLeft === 0 ? 'HẾT KỲ HÔM NAY' : `CÒN ${daysLeft} NGÀY hết kỳ`} (${formatDay(periodEnd)}) mà mới đạt ${percent}%`);
     } else if (elapsedPercent - percent >= BEHIND_PACE_POINTS) {
