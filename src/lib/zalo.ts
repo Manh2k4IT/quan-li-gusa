@@ -9,8 +9,13 @@ const REFRESH_SKEW_MS = 5 * 60 * 1000;
 const MAX_TEXT_LENGTH = 2000;
 const TOKEN_ERRORS = new Set([-216, -220]);
 
-// Holds the PKCE verifier and state between /api/zalo/connect and /api/zalo/callback.
-export const ZALO_OAUTH_COOKIE = 'gusa_zalo_oauth';
+// The server listens on 0.0.0.0 behind Render's proxy, so request.url is not the address the browser used.
+export function publicUrl(request: Request, path: string) {
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  if (!host) return new URL(path, request.url);
+  const proto = request.headers.get('x-forwarded-proto')?.split(',')[0] ?? (host.startsWith('localhost') ? 'http' : 'https');
+  return new URL(path, `${proto}://${host}`);
+}
 
 export const ZALO_KEYS = {
   accessToken: 'accessToken',
@@ -21,6 +26,8 @@ export const ZALO_KEYS = {
   watchStartedAt: 'watchStartedAt',
   lastWeeklyReport: 'lastWeeklyReport',
   lastError: 'lastError',
+  // PKCE verifier and state between /api/zalo/connect and the callback.
+  pendingAuth: 'pendingAuth',
 } as const;
 
 export type ZaloGroup = { group_id: string; name: string; status: string; total_member?: number };
