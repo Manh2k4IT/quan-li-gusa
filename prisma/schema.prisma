@@ -27,6 +27,8 @@ model User {
   email        String        @unique
   name         String
   password     String        @default("gusa123")
+  // Small square JPEG as a data URL, set from the user admin page.
+  avatar       String?
   role         Role
   category     String        @default("Chưa phân loại")
   orgId        String

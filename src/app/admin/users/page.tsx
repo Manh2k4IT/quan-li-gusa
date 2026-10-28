@@ -7,6 +7,7 @@ import { canAccessModule, getRoleLabel, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import FormSubmitButton from '@/components/form-submit-button';
 import PasswordToggle from '@/components/password-toggle';
+import AvatarPicker from '@/components/avatar-picker';
 import { Icon, type IconName } from '@/components/icons';
 
 const ROLE_OPTIONS = [
@@ -31,6 +32,7 @@ async function getUsers() {
       role: user.role,
       category: user.category,
       password: user.password,
+      avatar: user.avatar,
       org: user.organization.name,
       createdAt: new Intl.DateTimeFormat('vi-VN', {
         day: '2-digit',
@@ -135,6 +137,29 @@ async function createUser(formData: FormData) {
     details: `${name} (${email}) assigned ${role}`,
   });
 
+  revalidatePath('/admin/users');
+}
+
+// Data URLs from AvatarPicker are ~10KB; the cap only stops oversized or foreign payloads.
+const AVATAR_MAX_LENGTH = 200_000;
+
+async function updateAvatar(formData: FormData) {
+  'use server';
+
+  const session = getSession(await cookies());
+
+  if (!session || (session.role !== 'CEO' && session.role !== 'MANAGER')) {
+    return;
+  }
+
+  const userId = String(formData.get('userId') ?? '').trim();
+  const avatar = String(formData.get('avatar') ?? '');
+
+  if (!userId || avatar.length > AVATAR_MAX_LENGTH || (avatar && !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(avatar))) {
+    return;
+  }
+
+  await prisma.user.update({ where: { id: userId }, data: { avatar: avatar || null } });
   revalidatePath('/admin/users');
 }
 
@@ -308,7 +333,7 @@ export default async function AdminUsersPage() {
                       <tr key={user.id}>
                         <td>
                           <div className="users-identity">
-                            <span className={`users-avatar users-avatar-${user.role.toLowerCase()}`}>{user.name.charAt(0).toUpperCase()}</span>
+                            <AvatarPicker userId={user.id} name={user.name} role={user.role} avatar={user.avatar} action={updateAvatar} />
                             <div>
                               <strong>
                                 {user.name}
