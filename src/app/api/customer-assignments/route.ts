@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { recordActivity } from '@/lib/activity';
+import { recordAssignmentResultsSafely } from '@/lib/assignment-history';
 import { getCustomerDirectory } from '@/lib/customer-directory';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -42,6 +43,9 @@ export async function POST(request: Request) {
   const customers = customerKeys.map((key) => byKey.get(key)).filter((customer) => customer !== undefined);
   if (!customers.length) return NextResponse.json({ message: 'Không tìm thấy khách hàng trên ERP.' }, { status: 400 });
 
+  // Keep the result of any period this replaces before it is overwritten.
+  await recordAssignmentResultsSafely({ customerKey: { in: customers.map((customer) => customer.key) }, NOT: { saleId: sale.id, periodStart, periodEnd } }, 'reassigned');
+
   await prisma.$transaction(customers.map((customer) => prisma.customerAssignment.upsert({
     where: { customerKey: customer.key },
     update: { saleId: sale.id, assignedById: manager.id, targetRevenue, periodStart, periodEnd, note, customerName: customer.name },
@@ -78,6 +82,7 @@ export async function DELETE(request: Request) {
   const customerKeys = readKeys(body.customerKeys);
   if (!customerKeys.length) return NextResponse.json({ message: 'Chưa chọn khách hàng nào.' }, { status: 400 });
 
+  await recordAssignmentResultsSafely({ customerKey: { in: customerKeys } }, 'removed');
   const { count } = await prisma.customerAssignment.deleteMany({ where: { customerKey: { in: customerKeys } } });
   return NextResponse.json({ ok: true, removed: count });
 }

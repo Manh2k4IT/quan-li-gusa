@@ -116,6 +116,30 @@ model CustomerAssignment {
   @@index([saleId])
 }
 
+// Outcome of one assignment period, kept after the assignment ends, is replaced or removed.
+// Sale fields are copied, not related, so history survives deleting the user.
+model AssignmentResult {
+  id              String   @id @default(cuid())
+  customerKey     String
+  customerCode    String
+  customerName    String
+  businessGroup   String
+  saleId          String
+  saleName        String
+  targetRevenue   Float
+  achievedRevenue Float
+  achievedOrders  Int
+  periodStart     String
+  periodEnd       String
+  reached         Boolean
+  outcome         String
+  recordedAt      DateTime @default(now())
+
+  @@unique([customerKey, saleId, periodStart, periodEnd])
+  @@index([saleId])
+  @@index([periodEnd])
+}
+
 model AttendanceNote {
   id           String   @id @default(cuid())
   date         String

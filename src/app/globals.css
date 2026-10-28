@@ -7757,3 +7757,39 @@ body {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Assignment result history */
+.cx-result {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cx-result-done {
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+}
+
+.cx-result-miss {
+  border: 1px solid rgba(251, 113, 133, 0.4);
+  background: rgba(251, 113, 133, 0.12);
+  color: #fb7185;
+}
+
+.cx-result-inline {
+  display: none;
+  margin-top: 6px;
+  font-size: 0.7rem;
+  white-space: normal;
+}
+
+@media (max-width: 760px) {
+  .cx-result-inline {
+    display: inline-flex;
+  }
+}

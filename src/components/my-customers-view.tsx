@@ -36,7 +36,29 @@ type AssignedCustomer = {
   recentOrders: { id: string; date: string | null; total: number; status: string }[];
   foundInErp: boolean;
 };
-type Payload = { customers: AssignedCustomer[]; sales: { id: string; name: string }[]; isManager: boolean; lastMonthLabel: string };
+type HistoryEntry = {
+  id: string;
+  name: string;
+  code: string;
+  group: string;
+  saleId: string;
+  saleName: string;
+  periodStart: string;
+  periodEnd: string;
+  targetRevenue: number;
+  achievedRevenue: number;
+  achievedOrders: number;
+  reached: boolean;
+  outcome: 'completed' | 'reassigned' | 'removed';
+  recordedAt: string;
+};
+type Payload = { customers: AssignedCustomer[]; sales: { id: string; name: string }[]; isManager: boolean; lastMonthLabel: string; history: HistoryEntry[] };
+
+const OUTCOME_LABELS: Record<HistoryEntry['outcome'], string> = {
+  completed: 'Hết kỳ',
+  reassigned: 'Giao lại trước hạn',
+  removed: 'Bỏ giao trước hạn',
+};
 type SaleSummary = { saleId: string; saleName: string; customers: number; target: number; achieved: number; lastMonth: number; reached: number };
 
 const formatPeriod = (start: string, end: string) => `${formatDate(start)} – ${formatDate(end)}`;
@@ -143,6 +165,69 @@ function DetailTable({ customers, showSale = false }: { customers: AssignedCusto
         </tbody>
       </table>
     </div>
+  );
+}
+
+function HistorySection({ history, showSale }: { history: HistoryEntry[]; showSale: boolean }) {
+  const [filter, setFilter] = useState<'all' | 'reached' | 'missed'>('all');
+  const reachedCount = history.filter((entry) => entry.reached).length;
+  const visible = history.filter((entry) => (filter === 'all' ? true : filter === 'reached' ? entry.reached : !entry.reached));
+
+  return (
+    <section className="users-card cx-report-section">
+      <div className="users-card-header">
+        <h3>Lịch sử kết quả</h3>
+        <div className="cx-view-toggle" role="tablist" aria-label="Lọc kết quả">
+          <button type="button" className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Tất cả ({history.length})</button>
+          <button type="button" className={filter === 'reached' ? 'active' : ''} onClick={() => setFilter('reached')}>Đạt ({reachedCount})</button>
+          <button type="button" className={filter === 'missed' ? 'active' : ''} onClick={() => setFilter('missed')}>Không đạt ({history.length - reachedCount})</button>
+        </div>
+        <p>Kết quả từng kỳ giao khách, lưu lại khi hết kỳ hoặc khi giao lại / bỏ giao. Tỷ lệ đạt: {percentOf(reachedCount, history.length)}%.</p>
+      </div>
+      <div className="users-table-scroll">
+        <table className="users-table">
+          <thead>
+            <tr>
+              <th>Khách hàng</th>
+              {showSale ? <th>Sale</th> : null}
+              <th>Kỳ mục tiêu</th>
+              <th className="cx-num">Mục tiêu</th>
+              <th className="cx-num">Đã đạt</th>
+              <th className="cx-num">Tiến độ</th>
+              <th>Kết quả</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((entry) => {
+              const percent = percentOf(entry.achievedRevenue, entry.targetRevenue);
+              return (
+                <tr key={entry.id}>
+                  <td>
+                    <div className="users-identity">
+                      <span className="users-avatar">{entry.name.charAt(0).toUpperCase()}</span>
+                      <div>
+                        <strong>{entry.name}</strong>
+                        <small>{entry.code.toUpperCase()}</small>
+                        <span className="cx-group cx-group-inline">{entry.group}</span>
+                        {/* Phones scroll the table sideways, so the verdict is repeated under the name. */}
+                        <span className={`cx-result cx-result-inline ${entry.reached ? 'cx-result-done' : 'cx-result-miss'}`}>{entry.reached ? '✓ Đạt' : '✕ Không đạt'} · {percent}% · {formatPeriod(entry.periodStart, entry.periodEnd)}</span>
+                      </div>
+                    </div>
+                  </td>
+                  {showSale ? <td><span className="cx-group cx-group-sale">{entry.saleName}</span></td> : null}
+                  <td className="users-date">{formatPeriod(entry.periodStart, entry.periodEnd)}<small className="cx-sub">{OUTCOME_LABELS[entry.outcome]}</small></td>
+                  <td className="cx-num">{formatVnd(entry.targetRevenue)}</td>
+                  <td className="cx-num cx-strong">{formatVnd(entry.achievedRevenue)}<small className="cx-sub">{entry.achievedOrders} đơn</small></td>
+                  <td className={`cx-num cx-strong cx-percent-${toneOf(percent)}`}>{percent}%</td>
+                  <td><span className={`cx-result ${entry.reached ? 'cx-result-done' : 'cx-result-miss'}`}>{entry.reached ? '✓ Đạt' : '✕ Không đạt'}</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {!visible.length ? <div className="users-empty">Không có kỳ nào trong mục này.</div> : null}
+    </section>
   );
 }
 
@@ -379,6 +464,8 @@ export default function MyCustomersView({ saleId }: { saleId?: string }) {
           })}
         </div>
       ) : null}
+
+      {data?.history?.length ? <HistorySection history={data.history} showSale={isManager && !isSalePage} /> : null}
     </main>
   );
 }

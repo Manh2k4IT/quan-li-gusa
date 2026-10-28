@@ -2,6 +2,7 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { recordActivity } from '@/lib/activity';
+import { recordAssignmentResultsSafely } from '@/lib/assignment-history';
 import { canAccessModule, getRoleLabel, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import FormSubmitButton from '@/components/form-submit-button';
@@ -161,6 +162,9 @@ async function deleteUser(formData: FormData) {
   if (targetUser.email.toLowerCase() === session.email.toLowerCase()) {
     return;
   }
+
+  // Their customer assignments are deleted with them; keep each period's result first.
+  await recordAssignmentResultsSafely({ saleId: userId }, 'removed');
 
   const actor = await prisma.user.findUnique({ where: { email: session.email.toLowerCase() }, select: { id: true } });
 
