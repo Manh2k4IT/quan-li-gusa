@@ -7450,3 +7450,310 @@ body {
     font-size: 0.8rem;
   }
 }
+
+/* Zalo notifications admin page */
+.zalo-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.zalo-page .users-header {
+  margin-bottom: 0;
+}
+
+.zalo-flash {
+  --tone: #34d399;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  color: color-mix(in srgb, var(--tone) 70%, white);
+  font-size: 0.88rem;
+}
+
+.zalo-flash.is-error {
+  --tone: #fb7185;
+}
+
+.zalo-flash svg {
+  flex-shrink: 0;
+}
+
+.zalo-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+.users-stat-rose { --tone: #fb7185; }
+
+.zalo-stat-body {
+  min-width: 0;
+}
+
+.zalo-stat-body strong {
+  overflow: hidden;
+  font-size: 1.08rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zalo-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.zalo-dot::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.zalo-dot.is-on::before {
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+.zalo-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.zalo-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zalo-steps li {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding-bottom: 18px;
+}
+
+.zalo-steps li:last-child {
+  padding-bottom: 0;
+}
+
+/* Connector line between step badges */
+.zalo-steps li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 34px;
+  bottom: 4px;
+  left: 15px;
+  width: 2px;
+  background: var(--line);
+}
+
+.zalo-step-badge {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(109, 124, 255, 0.45);
+  border-radius: 50%;
+  background: rgba(109, 124, 255, 0.14);
+  color: #c7cdff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.zalo-steps li.is-done .zalo-step-badge {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.16);
+  color: #86efac;
+}
+
+.zalo-steps li.is-done:not(:last-child)::after {
+  background: rgba(34, 197, 94, 0.35);
+}
+
+.zalo-step-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.zalo-step-body strong {
+  font-size: 0.95rem;
+}
+
+.zalo-step-body p {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.zalo-step-body .users-empty {
+  padding: 12px 14px;
+  font-size: 0.82rem;
+}
+
+.zalo-row .primary-btn,
+.zalo-row .ghost-btn,
+.zalo-action button {
+  font-size: 0.86rem;
+}
+
+.zalo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.zalo-row a {
+  text-decoration: none;
+}
+
+.zalo-select {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(8, 17, 32, 0.8);
+  color: var(--text);
+  font-size: 0.86rem;
+  color-scheme: dark;
+}
+
+.zalo-select:focus {
+  outline: none;
+  border-color: rgba(109, 124, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(109, 124, 255, 0.18);
+}
+
+.zalo-danger:hover {
+  border-color: rgba(251, 113, 133, 0.5);
+  color: #fda4af;
+}
+
+.zalo-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zalo-schedule li {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.04);
+}
+
+.zalo-schedule-icon,
+.zalo-action-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(109, 124, 255, 0.16);
+  color: #a5b4fc;
+}
+
+.zalo-schedule strong {
+  font-size: 0.88rem;
+}
+
+.zalo-schedule p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.zalo-error {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(251, 113, 133, 0.35);
+  border-radius: 12px;
+  background: rgba(251, 113, 133, 0.08);
+  font-size: 0.78rem;
+  word-break: break-word;
+}
+
+.zalo-error strong {
+  color: #fda4af;
+}
+
+.zalo-error span {
+  color: #fecdd3;
+}
+
+.zalo-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.zalo-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.04);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.zalo-action:hover {
+  border-color: rgba(109, 124, 255, 0.4);
+  background: rgba(109, 124, 255, 0.06);
+}
+
+.zalo-action strong {
+  margin-top: 4px;
+  font-size: 0.92rem;
+}
+
+.zalo-action p {
+  flex: 1;
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.zalo-action button {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .zalo-grid,
+  .zalo-actions,
+  .zalo-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
