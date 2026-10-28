@@ -8,27 +8,16 @@ const WEEKLY_REPORT_HOUR = 8;
 const DIVIDER = '━━━━━━━━━━━━━━━━';
 const BAR_SLOTS = 10;
 
-// Short amounts read better in chat, and Zalo turns long digit runs like 376.809.615 into phone links.
-function formatMoney(value: number) {
-  const abs = Math.abs(value);
-  const short = (amount: number, unit: string) => `${amount.toLocaleString('vi-VN', { maximumFractionDigits: amount < 10 ? 2 : 1 })} ${unit}`;
-  if (abs >= 1e9) return short(value / 1e9, 'tỷ');
-  if (abs >= 1e6) return short(value / 1e6, 'triệu');
-  if (abs >= 1e3) return short(value / 1e3, 'nghìn');
-  return `${Math.round(value)} đ`;
-}
-
 const formatDay = (isoDate: string) => isoDate.slice(0, 10).split('-').reverse().join('/');
 const formatShortDay = (isoDate: string) => formatDay(isoDate).slice(0, 5);
 
+// Zalo group messages show progress only, never revenue amounts.
 function progressLine(achieved: number, target: number) {
-  if (target <= 0) return `Đã đạt ${formatMoney(achieved)} · chưa đặt mục tiêu`;
+  if (target <= 0) return 'Chưa đặt mục tiêu';
   const percent = Math.round((achieved / target) * 100);
   const filled = Math.min(BAR_SLOTS, Math.round((percent / 100) * BAR_SLOTS));
   const bar = `${'▰'.repeat(filled)}${'▱'.repeat(BAR_SLOTS - filled)}`;
-  const tail = achieved >= target
-    ? `🎯 vượt mục tiêu ${formatMoney(achieved - target)}`
-    : `còn ${100 - percent}% (thiếu ${formatMoney(target - achieved)})`;
+  const tail = percent >= 100 ? `🎯 vượt ${(percent - 100).toLocaleString('vi-VN')}%` : `còn ${100 - percent}%`;
   return `${bar} ${percent.toLocaleString('vi-VN')}% · ${tail}`;
 }
 
@@ -120,16 +109,14 @@ export async function notifyNewOrders() {
       '🛒 KHÁCH HÀNG PHÁT SINH ĐƠN MỚI',
       DIVIDER,
       `🏷 Khách hàng: ${customerLabel(row)}`,
-      `🧾 Mã đơn: ${order.id}`,
-      `💰 Giá trị: ${formatMoney(order.total)}${order.date ? ` · ngày ${formatDay(order.date)}` : ''}`,
+      `🧾 Mã đơn: ${order.id}${order.date ? ` · ngày ${formatDay(order.date)}` : ''}`,
       `👤 Sale phụ trách: ${row.saleName}`,
       '',
-      `📈 Tiến độ khách hàng (mục tiêu ${formatMoney(row.assignment.targetRevenue)}, ${formatShortDay(row.assignment.periodStart)} – ${formatDay(row.assignment.periodEnd)})`,
+      `📈 Tiến độ khách hàng (${formatShortDay(row.assignment.periodStart)} – ${formatDay(row.assignment.periodEnd)})`,
       progressLine(row.achieved, row.assignment.targetRevenue),
       '',
       `📊 Tiến độ chung của ${sale.name}`,
       progressLine(sale.achieved, sale.target),
-      `Đã đạt ${formatMoney(sale.achieved)} / ${formatMoney(sale.target)}`,
     ].join('\n'));
     // Recorded right after its own send, so a failure part-way through never re-posts earlier orders.
     await prisma.zaloOrderNotice.create({ data: { orderId: order.id, customerKey: row.assignment.customerKey } });
@@ -158,13 +145,13 @@ export async function buildWeeklyReport(now = new Date()) {
     const idle = weekly.filter(({ week }) => week.count === 0);
     withOrdersTotal += withOrders.length;
 
-    lines.push('', `👤 ${sale.name.toUpperCase()}`, `Tiến độ chung: ${progressLine(sale.achieved, sale.target)}`, `Đã đạt ${formatMoney(sale.achieved)} / ${formatMoney(sale.target)}`);
+    lines.push('', `👤 ${sale.name.toUpperCase()}`, `Tiến độ chung: ${progressLine(sale.achieved, sale.target)}`);
 
     if (withOrders.length) {
       lines.push('', `✅ Có phát sinh đơn tuần qua (${withOrders.length})`);
       withOrders.forEach(({ row, week }, index) => {
         lines.push(`${index + 1}. ${customerLabel(row)}`);
-        lines.push(`   ${week.count} đơn · ${formatMoney(week.total)} trong tuần`);
+        lines.push(`   ${week.count} đơn trong tuần`);
         lines.push(`   ${progressLine(row.achieved, row.assignment.targetRevenue)}`);
       });
     }
