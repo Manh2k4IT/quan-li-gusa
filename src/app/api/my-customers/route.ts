@@ -27,11 +27,10 @@ export async function GET(request: Request) {
     // Periods that ended since anyone last looked are stored in history and released before reading.
     await closeEndedAssignmentsSafely();
 
-    const [assignments, directory, sales, results] = await Promise.all([
+    const [assignments, directory, sales] = await Promise.all([
       prisma.customerAssignment.findMany({ where, include: { sale: { select: { id: true, name: true } }, assignedBy: { select: { name: true } } }, orderBy: { updatedAt: 'desc' } }),
       getCustomerDirectory(),
       isManager ? prisma.user.findMany({ where: { role: 'SALE' }, select: { id: true, name: true }, orderBy: { name: 'asc' } }) : Promise.resolve([]),
-      prisma.assignmentResult.findMany({ where, orderBy: [{ periodEnd: 'desc' }, { recordedAt: 'desc' }], take: 300 }),
     ]);
     const byKey = new Map(directory.map((customer) => [customer.key, customer]));
     const lastMonth = getPreviousMonthRange();
@@ -77,24 +76,7 @@ export async function GET(request: Request) {
       };
     });
 
-    const history = results.map((result) => ({
-      id: result.id,
-      name: result.customerName,
-      code: result.customerCode,
-      group: result.businessGroup,
-      saleId: result.saleId,
-      saleName: result.saleName,
-      periodStart: result.periodStart,
-      periodEnd: result.periodEnd,
-      targetRevenue: result.targetRevenue,
-      achievedRevenue: result.achievedRevenue,
-      achievedOrders: result.achievedOrders,
-      reached: result.reached,
-      outcome: result.outcome,
-      recordedAt: result.recordedAt.toISOString(),
-    }));
-
-    return NextResponse.json({ customers, sales, isManager, lastMonthLabel: lastMonth.label, history });
+    return NextResponse.json({ customers, sales, isManager, lastMonthLabel: lastMonth.label });
   } catch (error) {
     console.error('My customers error:', error);
     return NextResponse.json({ message: 'Không thể tải dữ liệu khách hàng từ ERP.' }, { status: 502 });

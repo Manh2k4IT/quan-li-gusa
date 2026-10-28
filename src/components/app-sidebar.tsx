@@ -37,7 +37,10 @@ const SALES_SECTION: NavSection = {
 
 const SALE_CUSTOMER_SECTION: NavSection = {
   title: 'Khách hàng',
-  items: [{ href: '/my-customers', label: 'Khách hàng của tôi', icon: 'userCheck' }],
+  items: [
+    { href: '/my-customers', label: 'Khách hàng của tôi', icon: 'userCheck' },
+    { href: '/customer-history', label: 'Lịch sử chăm khách', icon: 'clock' },
+  ],
 };
 
 const MANAGEMENT_SECTIONS: NavSection[] = [
@@ -60,6 +63,7 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     items: [
       { href: '/customers', label: 'Danh sách khách hàng', icon: 'users' },
       { href: '/my-customers', label: 'Báo cáo giao khách', icon: 'chart' },
+      { href: '/customer-history', label: 'Lịch sử giao khách', icon: 'clock' },
     ],
   },
   {
