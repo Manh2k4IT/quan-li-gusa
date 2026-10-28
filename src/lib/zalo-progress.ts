@@ -41,7 +41,6 @@ type ProgressRow = {
   achieved: number;
 };
 
-// A sale's overall progress only counts targets running in the last week, so a target that starts next month does not drag it down.
 async function loadProgress(today: string) {
   const weekStart = shiftDate(today, -6);
   const [assignments, directory] = await Promise.all([
@@ -61,17 +60,27 @@ async function loadProgress(today: string) {
       achieved: sumOrdersBetween(orders, assignment.periodStart, assignment.periodEnd).total,
     };
   });
-  const active = rows.filter((row) => row.assignment.periodStart <= today && row.assignment.periodEnd >= weekStart);
+  // Customers whose target period has not ended yet, including ones starting later.
+  const active = rows.filter((row) => row.assignment.periodEnd >= weekStart);
 
-  const saleTotals = new Map<string, { name: string; achieved: number; target: number }>();
-  for (const row of active) {
-    const total = saleTotals.get(row.assignment.saleId) ?? { name: row.saleName, achieved: 0, target: 0 };
+  // Same totals as "Tổng hợp theo Sale" on /my-customers: every assigned customer, whatever its period.
+  const saleTotals = new Map<string, { name: string; achieved: number; target: number; customers: number; reached: number }>();
+  for (const row of rows) {
+    const total = saleTotals.get(row.assignment.saleId) ?? { name: row.saleName, achieved: 0, target: 0, customers: 0, reached: 0 };
     total.achieved += row.achieved;
     total.target += row.assignment.targetRevenue;
+    total.customers += 1;
+    if (row.assignment.targetRevenue > 0 && row.achieved >= row.assignment.targetRevenue) total.reached += 1;
     saleTotals.set(row.assignment.saleId, total);
   }
 
   return { rows, active, saleTotals, weekStart };
+}
+
+function customerProgress(row: ProgressRow, today: string) {
+  return row.assignment.periodStart > today
+    ? `⏳ Kỳ mục tiêu bắt đầu ${formatDay(row.assignment.periodStart)}`
+    : progressLine(row.achieved, row.assignment.targetRevenue);
 }
 
 function customerLabel(row: ProgressRow) {
@@ -104,7 +113,7 @@ export async function notifyNewOrders() {
 
   for (const { row, order } of candidates) {
     if (seenIds.has(order.id)) continue;
-    const sale = saleTotals.get(row.assignment.saleId) ?? { name: row.saleName, achieved: row.achieved, target: row.assignment.targetRevenue };
+    const sale = saleTotals.get(row.assignment.saleId)!;
     await sendZaloGroupText([
       '🛒 KHÁCH HÀNG PHÁT SINH ĐƠN MỚI',
       DIVIDER,
@@ -145,14 +154,14 @@ export async function buildWeeklyReport(now = new Date()) {
     const idle = weekly.filter(({ week }) => week.count === 0);
     withOrdersTotal += withOrders.length;
 
-    lines.push('', `👤 ${sale.name.toUpperCase()}`, `Tiến độ chung: ${progressLine(sale.achieved, sale.target)}`);
+    lines.push('', `👤 ${sale.name.toUpperCase()}`, `Tiến độ chung: ${progressLine(sale.achieved, sale.target)}`, `Khách đạt mục tiêu: ${sale.reached}/${sale.customers}`);
 
     if (withOrders.length) {
       lines.push('', `✅ Có phát sinh đơn tuần qua (${withOrders.length})`);
       withOrders.forEach(({ row, week }, index) => {
         lines.push(`${index + 1}. ${customerLabel(row)}`);
         lines.push(`   ${week.count} đơn trong tuần`);
-        lines.push(`   ${progressLine(row.achieved, row.assignment.targetRevenue)}`);
+        lines.push(`   ${customerProgress(row, today)}`);
       });
     }
 
@@ -161,7 +170,7 @@ export async function buildWeeklyReport(now = new Date()) {
       idle.forEach(({ row }, index) => {
         const lastOrder = row.orders.find((order) => order.date)?.date;
         lines.push(`${index + 1}. ${customerLabel(row)}`);
-        lines.push(`   ${progressLine(row.achieved, row.assignment.targetRevenue)}`);
+        lines.push(`   ${customerProgress(row, today)}`);
         lines.push(`   Đơn gần nhất: ${lastOrder ? `${formatDay(lastOrder)} (${daysBetween(lastOrder, today)} ngày trước)` : 'chưa từng mua'}`);
       });
     }
