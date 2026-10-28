@@ -7856,3 +7856,14 @@ body {
 .avatar-picker-remove:focus-visible {
   display: grid;
 }
+
+/* Uploaded avatars fill their round frame */
+.user-avatar {
+  overflow: hidden;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

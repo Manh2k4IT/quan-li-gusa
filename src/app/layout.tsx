@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Be_Vietnam_Pro, Geist_Mono } from "next/font/google";
 import AppShell from "@/components/app-shell";
 import { getRoleLabel, getSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import "./globals.css";
 
 const beVietnamPro = Be_Vietnam_Pro({
@@ -25,7 +26,9 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const session = getSession(await cookies());
-  const user = session ? { name: session.name, role: session.role, roleLabel: getRoleLabel(session.role) } : null;
+  // The avatar lives in the database, not the session cookie, so a change shows up on the next page load.
+  const avatar = session ? (await prisma.user.findUnique({ where: { email: session.email.toLowerCase() }, select: { avatar: true } }).catch(() => null))?.avatar ?? null : null;
+  const user = session ? { name: session.name, role: session.role, roleLabel: getRoleLabel(session.role), avatar } : null;
 
   return (
     <html

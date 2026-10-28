@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Icon, type IconName } from '@/components/icons';
 import { useNotifications } from '@/components/notification-bell';
+import UserAvatar from '@/components/user-avatar';
 
 export type SidebarUser = {
   name: string;
   role: 'CEO' | 'MANAGER' | 'SALE';
   roleLabel: string;
+  avatar?: string | null;
 };
 
 type NavChild = { href: string; label: string };
@@ -156,7 +158,7 @@ export default function AppSidebar({ user }: { user: SidebarUser | null }) {
 
         {user ? (
           <div className="sidebar-user">
-            <div className="sidebar-user-avatar">{user.name.charAt(0).toUpperCase()}</div>
+            <UserAvatar name={user.name} avatar={user.avatar ?? null} className="sidebar-user-avatar" />
             <div className="sidebar-user-info">
               <strong>{user.name}</strong>
               <small>{user.roleLabel}</small>

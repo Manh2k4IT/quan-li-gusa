@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import UserAvatar from '@/components/user-avatar';
 
 type AssignmentRecord = {
   id: string;
@@ -48,13 +49,14 @@ type PlanReport = {
   attachmentName?: string;
   status: 'Đang thực hiện' | 'Chờ xác nhận' | 'Đã duyệt' | 'Không duyệt' | 'Đã hoàn thành';
   note: string;
+  salespersonId?: string;
 };
 
 type AssignmentPayload = {
   id: string;
   date?: string;
   manager?: { name?: string };
-  assignee?: { name?: string; email?: string };
+  assignee?: { id?: string; name?: string; email?: string };
   category?: string;
   title?: string;
   attachmentName?: string;
@@ -138,6 +140,7 @@ export default function SalesPlanPage() {
             assignedDate: assignment.date,
             manager: assignment.manager?.name ?? 'Quản lý',
             salesperson: assignment.assignee?.name ?? assignment.assignee?.email ?? 'Sale',
+            salespersonId: assignment.assignee?.id,
             category: (assignment.category as PlanReport['category']) ?? 'Thời trang Quận 4',
             target: 0,
             title: assignment.title,
@@ -352,7 +355,7 @@ export default function SalesPlanPage() {
                       </td>
                       <td>
                         <div className="users-identity">
-                          <span className="users-avatar">{plan.salesperson.charAt(0).toUpperCase()}</span>
+                          <UserAvatar name={plan.salesperson} userId={plan.salespersonId} />
                           <strong>{plan.salesperson}</strong>
                         </div>
                       </td>

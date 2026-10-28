@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Icon } from '@/components/icons';
+import UserAvatar from '@/components/user-avatar';
 import { formatDate, formatVnd } from '@/components/customer-directory-view';
 
 type AssignedCustomer = {
@@ -342,7 +343,7 @@ export default function MyCustomersView({ saleId }: { saleId?: string }) {
                       <tr key={sale.saleId} className="cx-clickable" onClick={() => router.push(href)}>
                         <td>
                           <div className="users-identity">
-                            <span className="users-avatar">{sale.saleName.charAt(0).toUpperCase()}</span>
+                            <UserAvatar name={sale.saleName} userId={sale.saleId} />
                             <Link href={href} className="cx-sale-link" onClick={(event) => event.stopPropagation()}>{sale.saleName} →</Link>
                           </div>
                         </td>
