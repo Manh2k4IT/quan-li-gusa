@@ -192,8 +192,8 @@ export default function MyCustomersView({ saleId }: { saleId?: string }) {
     <main className="workspace-page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">{isSalePage ? <Link href="/my-customers" className="cx-back">← Báo cáo giao khách</Link> : isManager ? 'Báo cáo giao khách' : 'Chăm sóc khách hàng'}</p>
-          <h1>{isSalePage ? `Khách đã giao cho ${saleName}` : isManager ? 'Báo cáo khách đã giao cho Sale' : 'Khách hàng của tôi'}</h1>
+          <p className="eyebrow">{isSalePage ? <Link href="/my-customers" className="cx-back">← Tiến độ sale</Link> : isManager ? 'Tiến độ sale' : 'Chăm sóc khách hàng'}</p>
+          <h1>{isSalePage ? `Khách đã giao cho ${saleName}` : isManager ? 'Tiến độ chăm khách của Sale' : 'Khách hàng của tôi'}</h1>
           <p className="users-subtitle">
             {isSalePage
               ? `Danh sách khách ${saleName} đang chăm sóc, mục tiêu và doanh thu đạt được từ ERP.`
@@ -205,7 +205,7 @@ export default function MyCustomersView({ saleId }: { saleId?: string }) {
         <div className="topbar-actions">
           {isManager ? (
             <>
-              <Link href={isSalePage ? `/customer-history?saleId=${encodeURIComponent(saleId ?? '')}` : '/customer-history'} className="ghost-btn">Lịch sử kết quả</Link>
+              <Link href={isSalePage ? `/customer-history?saleId=${encodeURIComponent(saleId ?? '')}` : '/customer-history'} className="ghost-btn">Lịch sử chăm khách</Link>
               <button type="button" className="ghost-btn" disabled={!customers.length} onClick={() => exportCsv(customers, lastMonthLabel)}>Xuất Excel</button>
               <Link href="/customers" className="primary-btn">Giao thêm khách</Link>
             </>

@@ -196,7 +196,7 @@ export async function buildWeeklyReport(now = new Date()) {
         ? `🎉 ${result.customerName} (${result.saleName}): ĐẠT MỤC TIÊU ${percent}% · kỳ đến ${formatDay(result.periodEnd)}`
         : `🔴 ${result.customerName} (${result.saleName}): KHÔNG ĐẠT, chỉ đạt ${percent}% · kỳ đến ${formatDay(result.periodEnd)}`);
     }
-    lines.push('Các khách này đã tự động bỏ giao, xem lại trong Lịch sử kết quả.');
+    lines.push('Các khách này đã tự động bỏ giao, xem lại trong Lịch sử chăm khách.');
   }
 
   const alerts = buildAlerts(active, today);

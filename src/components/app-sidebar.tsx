@@ -62,8 +62,8 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     title: 'Khách hàng',
     items: [
       { href: '/customers', label: 'Danh sách khách hàng', icon: 'users' },
-      { href: '/my-customers', label: 'Báo cáo giao khách', icon: 'chart' },
-      { href: '/customer-history', label: 'Lịch sử giao khách', icon: 'clock' },
+      { href: '/my-customers', label: 'Tiến độ sale', icon: 'chart' },
+      { href: '/customer-history', label: 'Lịch sử chăm khách', icon: 'clock' },
     ],
   },
   {

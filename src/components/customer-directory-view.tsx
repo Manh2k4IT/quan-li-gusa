@@ -159,7 +159,7 @@ export default function CustomerDirectoryView() {
           <p className="users-subtitle">Chọn khách hàng và giao cho Sale chăm sóc, kèm mục tiêu doanh thu. Số liệu mua hàng lấy tự động từ ERP.</p>
         </div>
         <div className="topbar-actions">
-          <Link href="/my-customers" className="ghost-btn">Báo cáo giao khách</Link>
+          <Link href="/my-customers" className="ghost-btn">Tiến độ sale</Link>
         </div>
       </header>
 

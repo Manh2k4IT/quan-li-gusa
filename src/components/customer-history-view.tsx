@@ -86,8 +86,8 @@ export default function CustomerHistoryView({ initialSaleId }: { initialSaleId: 
     <main className="workspace-page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">{isManager ? <Link href="/my-customers" className="cx-back">← Báo cáo giao khách</Link> : 'Chăm sóc khách hàng'}</p>
-          <h1>{isManager ? (selectedSale ? `Lịch sử giao khách · ${selectedSale}` : 'Lịch sử giao khách') : 'Lịch sử chăm khách'}</h1>
+          <p className="eyebrow">{isManager ? <Link href="/my-customers" className="cx-back">← Tiến độ sale</Link> : 'Chăm sóc khách hàng'}</p>
+          <h1>{isManager && selectedSale ? `Lịch sử chăm khách · ${selectedSale}` : 'Lịch sử chăm khách'}</h1>
           <p className="users-subtitle">Kết quả từng kỳ giao khách, tự lưu khi hết kỳ hoặc khi giao lại / bỏ giao. Tiến độ tính theo doanh thu ERP trong kỳ.</p>
         </div>
       </header>
