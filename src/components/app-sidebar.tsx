@@ -44,6 +44,7 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     items: [
       { href: '/', label: 'Dashboard điều hành', icon: 'dashboard' },
       { href: '/admin/users', label: 'Quản lý người dùng', icon: 'users' },
+      { href: '/admin/zalo', label: 'Thông báo Zalo', icon: 'bell' },
     ],
   },
   {

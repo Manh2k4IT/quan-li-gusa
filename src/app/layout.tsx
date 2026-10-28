@@ -19,6 +19,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "GUSA AI Operating System",
   description: "AI-powered business operating platform dashboard",
+  // Proves to Zalo that we own this domain, required for the Zalo OA callback URL.
+  other: { "zalo-platform-site-verification": "JuE4S96pAIjxWPiZ-fCO91ErYYV_mr5vDJSp" },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

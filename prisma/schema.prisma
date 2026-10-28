@@ -130,6 +130,20 @@ model AttendanceNote {
   @@index([name])
 }
 
+// Key/value store for the Zalo OA connection: rotating tokens, the target group, job bookkeeping.
+model ZaloSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// ERP sales orders already announced in the Zalo group, so each order is posted once.
+model ZaloOrderNotice {
+  orderId     String   @id
+  customerKey String
+  createdAt   DateTime @default(now())
+}
+
 enum Role {
   CEO
   MANAGER
